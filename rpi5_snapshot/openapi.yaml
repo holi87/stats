@@ -1,0 +1,2425 @@
+openapi: 3.0.3
+info:
+  title: Game Stats API
+  version: 1.0.0
+  description: API kontrakty dla modułów 1v1 oraz multiplayer.
+servers:
+  - url: /api/v1
+
+components:
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+      example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    Date:
+      type: string
+      format: date
+      example: "2026-01-30"
+    DateTime:
+      type: string
+      format: date-time
+      example: "2026-01-30T12:00:00.000Z"
+    ErrorDetailsItem:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    ErrorPayload:
+      type: object
+      required: [code, message, details]
+      properties:
+        code:
+          type: string
+          enum: [VALIDATION_ERROR, NOT_FOUND, CONFLICT, INTERNAL_ERROR]
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetailsItem'
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorPayload'
+
+    MultiplayerGame:
+      type: object
+      required: [id, code, displayName, scoringType, minPlayers, maxPlayers, isActive, inOneVsOne, inMultiplayer, optionsCount, requiresOption, customFieldsCount]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        code:
+          type: string
+          example: "terraforming_mars"
+        displayName:
+          type: string
+          example: "Terraformacja Marsa"
+        scoringType:
+          type: string
+          enum: [MANUAL_POINTS, TTR_CALCULATOR, TM_CALCULATOR, CUSTOM_CALCULATOR]
+        minPlayers:
+          type: integer
+        maxPlayers:
+          type: integer
+        isActive:
+          type: boolean
+        inOneVsOne:
+          type: boolean
+        inMultiplayer:
+          type: boolean
+        optionsCount:
+          type: integer
+        requiresOption:
+          type: boolean
+        customFieldsCount:
+          type: integer
+
+    MultiplayerGameListItem:
+      type: object
+      required: [id, code, displayName, scoringType, minPlayers, maxPlayers, isActive, inOneVsOne, inMultiplayer, optionsCount, requiresOption, customFieldsCount]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        code:
+          type: string
+        displayName:
+          type: string
+        scoringType:
+          type: string
+          enum: [MANUAL_POINTS, TTR_CALCULATOR, TM_CALCULATOR, CUSTOM_CALCULATOR]
+        minPlayers:
+          type: integer
+        maxPlayers:
+          type: integer
+        isActive:
+          type: boolean
+        inOneVsOne:
+          type: boolean
+        inMultiplayer:
+          type: boolean
+        optionsCount:
+          type: integer
+        requiresOption:
+          type: boolean
+        customFieldsCount:
+          type: integer
+
+    MultiplayerGameList:
+      type: array
+      items:
+        $ref: '#/components/schemas/MultiplayerGameListItem'
+
+    MultiplayerGameCreateInput:
+      type: object
+      required: [displayName]
+      properties:
+        code:
+          type: string
+        displayName:
+          type: string
+        scoringType:
+          type: string
+          enum: [MANUAL_POINTS, CUSTOM_CALCULATOR]
+        minPlayers:
+          type: integer
+        maxPlayers:
+          type: integer
+        inOneVsOne:
+          type: boolean
+        inMultiplayer:
+          type: boolean
+        customCalculator:
+          type: object
+          properties:
+            fields:
+              type: array
+              items:
+                type: object
+                required: [label, pointsPerUnit]
+                properties:
+                  code:
+                    type: string
+                  label:
+                    type: string
+                  description:
+                    type: string
+                  pointsPerUnit:
+                    type: integer
+
+    MultiplayerGamePatchInput:
+      type: object
+      minProperties: 1
+      properties:
+        displayName:
+          type: string
+          maxLength: 80
+        minPlayers:
+          type: integer
+          minimum: 2
+          maximum: 5
+        maxPlayers:
+          type: integer
+          minimum: 2
+          maximum: 5
+        inOneVsOne:
+          type: boolean
+        inMultiplayer:
+          type: boolean
+
+    MultiplayerGameDeleteResponse:
+      type: object
+      required: [code, deletedMatches]
+      properties:
+        code:
+          type: string
+        deletedMatches:
+          type: integer
+
+    MultiplayerCustomCalculatorField:
+      type: object
+      required: [id, gameId, code, label, pointsPerUnit, sortOrder, isActive]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        gameId:
+          $ref: '#/components/schemas/Uuid'
+        code:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+          nullable: true
+        pointsPerUnit:
+          type: integer
+        sortOrder:
+          type: integer
+        isActive:
+          type: boolean
+
+    MultiplayerMatchPlayer:
+      type: object
+      required: [playerId, name, totalPoints, place]
+      properties:
+        playerId:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        totalPoints:
+          type: integer
+        place:
+          type: integer
+
+    MultiplayerMatchListItem:
+      type: object
+      required: [id, playedOn, game, players]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        game:
+          type: object
+          required: [id, code, displayName]
+          properties:
+            id:
+              $ref: '#/components/schemas/Uuid'
+            code:
+              type: string
+            displayName:
+              type: string
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/MultiplayerMatchPlayer'
+
+    MultiplayerMatchListResponse:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MultiplayerMatchListItem'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    TrainsCounts:
+      type: object
+      description: "Klucze '1'..'9' z wartościami integer >= 0"
+      required: ['1','2','3','4','5','6','7','8','9']
+      additionalProperties: false
+      properties:
+        '1': { type: integer, minimum: 0 }
+        '2': { type: integer, minimum: 0 }
+        '3': { type: integer, minimum: 0 }
+        '4': { type: integer, minimum: 0 }
+        '5': { type: integer, minimum: 0 }
+        '6': { type: integer, minimum: 0 }
+        '7': { type: integer, minimum: 0 }
+        '8': { type: integer, minimum: 0 }
+        '9': { type: integer, minimum: 0 }
+
+    TicketToRideVariant:
+      type: object
+      required: [id, code, name]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        code:
+          type: string
+          example: "europe"
+        name:
+          type: string
+          example: "Europa"
+
+    TicketToRidePlayersDetails:
+      type: array
+      items:
+        type: object
+        required: [playerId, ticketsPoints, bonusPoints, trainsCounts, trainsPoints, totalPoints, place]
+        properties:
+          playerId:
+            $ref: '#/components/schemas/Uuid'
+          ticketsPoints:
+            type: integer
+          bonusPoints:
+            type: integer
+            minimum: 0
+          trainsCounts:
+            $ref: '#/components/schemas/TrainsCounts'
+          trainsPoints:
+            type: integer
+            minimum: 0
+          totalPoints:
+            type: integer
+          place:
+            type: integer
+
+    TerraformingMarsPlayersDetails:
+      type: array
+      items:
+        type: object
+        required:
+          [playerId, titlesCount, awardsFirstCount, awardsSecondCount, citiesPoints, forestsPoints, cardsPoints, trPoints, titlesPoints, awardsFirstPoints, awardsSecondPoints, totalPoints, place]
+        properties:
+          playerId:
+            $ref: '#/components/schemas/Uuid'
+          titlesCount:
+            type: integer
+            minimum: 0
+          awardsFirstCount:
+            type: integer
+            minimum: 0
+          awardsSecondCount:
+            type: integer
+            minimum: 0
+          citiesPoints:
+            type: integer
+            minimum: 0
+          forestsPoints:
+            type: integer
+            minimum: 0
+          cardsPoints:
+            type: integer
+            minimum: 0
+          trPoints:
+            type: integer
+            minimum: 0
+          titlesPoints:
+            type: integer
+            minimum: 0
+          awardsFirstPoints:
+            type: integer
+            minimum: 0
+          awardsSecondPoints:
+            type: integer
+            minimum: 0
+          totalPoints:
+            type: integer
+          place:
+            type: integer
+
+    MultiplayerMatchBase:
+      type: object
+      required: [id, game, playedOn, players]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        game:
+          $ref: '#/components/schemas/MultiplayerGame'
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          $ref: '#/components/schemas/DateTime'
+        updatedAt:
+          $ref: '#/components/schemas/DateTime'
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/MultiplayerMatchPlayer'
+
+    MultiplayerMatchManualResponse:
+      allOf:
+        - $ref: '#/components/schemas/MultiplayerMatchBase'
+
+    MultiplayerMatchTtrResponse:
+      allOf:
+        - $ref: '#/components/schemas/MultiplayerMatchBase'
+        - type: object
+          required: [ticketToRide]
+          properties:
+            ticketToRide:
+              type: object
+              required: [variant, playersDetails]
+              properties:
+                variant:
+                  $ref: '#/components/schemas/TicketToRideVariant'
+                playersDetails:
+                  $ref: '#/components/schemas/TicketToRidePlayersDetails'
+
+    MultiplayerMatchTmResponse:
+      allOf:
+        - $ref: '#/components/schemas/MultiplayerMatchBase'
+        - type: object
+          required: [terraformingMars]
+          properties:
+            terraformingMars:
+              type: object
+              required: [playersDetails]
+              properties:
+                playersDetails:
+                  $ref: '#/components/schemas/TerraformingMarsPlayersDetails'
+
+    MultiplayerCustomCalculatorPlayersDetails:
+      type: array
+      items:
+        type: object
+        required: [playerId, values, totalPoints, place]
+        properties:
+          playerId:
+            $ref: '#/components/schemas/Uuid'
+          values:
+            type: array
+            items:
+              type: object
+              required: [fieldId, value, points]
+              properties:
+                fieldId:
+                  $ref: '#/components/schemas/Uuid'
+                value:
+                  type: integer
+                points:
+                  type: integer
+          totalPoints:
+            type: integer
+          place:
+            type: integer
+
+    MultiplayerMatchCustomResponse:
+      allOf:
+        - $ref: '#/components/schemas/MultiplayerMatchBase'
+        - type: object
+          required: [customCalculator]
+          properties:
+            customCalculator:
+              type: object
+              required: [fields, playersDetails]
+              properties:
+                fields:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/MultiplayerCustomCalculatorField'
+                playersDetails:
+                  $ref: '#/components/schemas/MultiplayerCustomCalculatorPlayersDetails'
+
+    MultiplayerMatchResponse:
+      oneOf:
+        - $ref: '#/components/schemas/MultiplayerMatchManualResponse'
+        - $ref: '#/components/schemas/MultiplayerMatchTtrResponse'
+        - $ref: '#/components/schemas/MultiplayerMatchTmResponse'
+        - $ref: '#/components/schemas/MultiplayerMatchCustomResponse'
+
+    MultiplayerMatchManualCreate:
+      type: object
+      description: "scoringType jest opcjonalne i służy jedynie do rozróżnienia schematów (serwer ignoruje to pole)."
+      required: [gameId, playedOn, players]
+      properties:
+        scoringType:
+          type: string
+          enum: [MANUAL_POINTS]
+        gameId:
+          $ref: '#/components/schemas/Uuid'
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+        players:
+          type: array
+          items:
+            type: object
+            required: [playerId, totalPoints]
+            properties:
+              playerId:
+                $ref: '#/components/schemas/Uuid'
+              totalPoints:
+                type: integer
+
+    MultiplayerMatchTtrCreate:
+      type: object
+      description: "scoringType jest opcjonalne i służy jedynie do rozróżnienia schematów (serwer ignoruje to pole)."
+      required: [gameId, playedOn, ticketToRide, players]
+      properties:
+        scoringType:
+          type: string
+          enum: [TTR_CALCULATOR]
+        gameId:
+          $ref: '#/components/schemas/Uuid'
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+        ticketToRide:
+          type: object
+          required: [variantId]
+          properties:
+            variantId:
+              $ref: '#/components/schemas/Uuid'
+        players:
+          type: array
+          items:
+            type: object
+            required: [playerId, ticketsPoints, bonusPoints, trainsCounts]
+            properties:
+              playerId:
+                $ref: '#/components/schemas/Uuid'
+              ticketsPoints:
+                type: integer
+              bonusPoints:
+                type: integer
+                minimum: 0
+              trainsCounts:
+                $ref: '#/components/schemas/TrainsCounts'
+
+    MultiplayerMatchTmCreate:
+      type: object
+      description: "scoringType jest opcjonalne i służy jedynie do rozróżnienia schematów (serwer ignoruje to pole)."
+      required: [gameId, playedOn, players]
+      properties:
+        scoringType:
+          type: string
+          enum: [TM_CALCULATOR]
+        gameId:
+          $ref: '#/components/schemas/Uuid'
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+        terraformingMars:
+          type: object
+          description: "Placeholder na przyszłość"
+        players:
+          type: array
+          items:
+            type: object
+            required: [playerId]
+            properties:
+              playerId:
+                $ref: '#/components/schemas/Uuid'
+              titlesCount:
+                type: integer
+                minimum: 0
+                default: 0
+              awardsFirstCount:
+                type: integer
+                minimum: 0
+                default: 0
+              awardsSecondCount:
+                type: integer
+                minimum: 0
+                default: 0
+              citiesPoints:
+                type: integer
+                minimum: 0
+                default: 0
+              forestsPoints:
+                type: integer
+                minimum: 0
+                default: 0
+              cardsPoints:
+                type: integer
+                minimum: 0
+                default: 0
+              trPoints:
+                type: integer
+                minimum: 0
+                default: 0
+
+    MultiplayerMatchCustomCreate:
+      type: object
+      description: "scoringType jest opcjonalne i służy jedynie do rozróżnienia schematów (serwer ignoruje to pole)."
+      required: [gameId, playedOn, players]
+      properties:
+        scoringType:
+          type: string
+          enum: [CUSTOM_CALCULATOR]
+        gameId:
+          $ref: '#/components/schemas/Uuid'
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+        players:
+          type: array
+          items:
+            type: object
+            required: [playerId, calculatorValues]
+            properties:
+              playerId:
+                $ref: '#/components/schemas/Uuid'
+              calculatorValues:
+                type: object
+                additionalProperties:
+                  type: integer
+
+    MultiplayerMatchCreate:
+      oneOf:
+        - $ref: '#/components/schemas/MultiplayerMatchManualCreate'
+        - $ref: '#/components/schemas/MultiplayerMatchTtrCreate'
+        - $ref: '#/components/schemas/MultiplayerMatchTmCreate'
+        - $ref: '#/components/schemas/MultiplayerMatchCustomCreate'
+      discriminator:
+        propertyName: scoringType
+        mapping:
+          MANUAL_POINTS: '#/components/schemas/MultiplayerMatchManualCreate'
+          TTR_CALCULATOR: '#/components/schemas/MultiplayerMatchTtrCreate'
+          TM_CALCULATOR: '#/components/schemas/MultiplayerMatchTmCreate'
+          CUSTOM_CALCULATOR: '#/components/schemas/MultiplayerMatchCustomCreate'
+
+    MultiplayerMatchManualPatch:
+      type: object
+      description: "Co najmniej jedno z: playedOn, notes, players. scoringType opcjonalne (jak wyżej)."
+      properties:
+        scoringType:
+          type: string
+          enum: [MANUAL_POINTS]
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+        players:
+          type: array
+          items:
+            type: object
+            required: [playerId, totalPoints]
+            properties:
+              playerId:
+                $ref: '#/components/schemas/Uuid'
+              totalPoints:
+                type: integer
+
+    MultiplayerMatchTtrPatch:
+      type: object
+      description: "Co najmniej jedno z: playedOn, notes, players. scoringType opcjonalne. ticketToRide można podać tylko razem z jednym z tych pól."
+      properties:
+        scoringType:
+          type: string
+          enum: [TTR_CALCULATOR]
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+        ticketToRide:
+          type: object
+          required: [variantId]
+          properties:
+            variantId:
+              $ref: '#/components/schemas/Uuid'
+        players:
+          type: array
+          items:
+            type: object
+            required: [playerId, ticketsPoints, bonusPoints, trainsCounts]
+            properties:
+              playerId:
+                $ref: '#/components/schemas/Uuid'
+              ticketsPoints:
+                type: integer
+              bonusPoints:
+                type: integer
+                minimum: 0
+              trainsCounts:
+                $ref: '#/components/schemas/TrainsCounts'
+
+    MultiplayerMatchTmPatch:
+      type: object
+      description: "Co najmniej jedno z: playedOn, notes, players. scoringType opcjonalne."
+      properties:
+        scoringType:
+          type: string
+          enum: [TM_CALCULATOR]
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+        terraformingMars:
+          type: object
+        players:
+          type: array
+          items:
+            type: object
+            required: [playerId]
+            properties:
+              playerId:
+                $ref: '#/components/schemas/Uuid'
+              titlesCount:
+                type: integer
+                minimum: 0
+              awardsFirstCount:
+                type: integer
+                minimum: 0
+              awardsSecondCount:
+                type: integer
+                minimum: 0
+              citiesPoints:
+                type: integer
+                minimum: 0
+              forestsPoints:
+                type: integer
+                minimum: 0
+              cardsPoints:
+                type: integer
+                minimum: 0
+              trPoints:
+                type: integer
+                minimum: 0
+
+    MultiplayerMatchCustomPatch:
+      type: object
+      description: "Co najmniej jedno z: playedOn, notes, players. scoringType opcjonalne."
+      properties:
+        scoringType:
+          type: string
+          enum: [CUSTOM_CALCULATOR]
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+        players:
+          type: array
+          items:
+            type: object
+            required: [playerId, calculatorValues]
+            properties:
+              playerId:
+                $ref: '#/components/schemas/Uuid'
+              calculatorValues:
+                type: object
+                additionalProperties:
+                  type: integer
+
+    MultiplayerMatchPatch:
+      oneOf:
+        - $ref: '#/components/schemas/MultiplayerMatchManualPatch'
+        - $ref: '#/components/schemas/MultiplayerMatchTtrPatch'
+        - $ref: '#/components/schemas/MultiplayerMatchTmPatch'
+        - $ref: '#/components/schemas/MultiplayerMatchCustomPatch'
+      discriminator:
+        propertyName: scoringType
+        mapping:
+          MANUAL_POINTS: '#/components/schemas/MultiplayerMatchManualPatch'
+          TTR_CALCULATOR: '#/components/schemas/MultiplayerMatchTtrPatch'
+          TM_CALCULATOR: '#/components/schemas/MultiplayerMatchTmPatch'
+          CUSTOM_CALCULATOR: '#/components/schemas/MultiplayerMatchCustomPatch'
+
+    MultiplayerPlayerStats:
+      type: object
+      required: [playerId, name, matches, wins, seconds, thirds, podiums, avgPoints, bestPoints]
+      properties:
+        playerId:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        matches:
+          type: integer
+        wins:
+          type: integer
+        seconds:
+          type: integer
+        thirds:
+          type: integer
+        podiums:
+          type: integer
+        avgPoints:
+          type: number
+          format: float
+        bestPoints:
+          type: integer
+
+    MultiplayerGameOption:
+      type: object
+      required: [id, gameId, code, displayName, sortOrder, isActive]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        gameId:
+          $ref: '#/components/schemas/Uuid'
+        code:
+          type: string
+        displayName:
+          type: string
+        sortOrder:
+          type: integer
+        isActive:
+          type: boolean
+
+    MultiplayerPlayerStatsByOption:
+      type: object
+      required: [overall, byOption]
+      properties:
+        overall:
+          type: array
+          items:
+            $ref: '#/components/schemas/MultiplayerPlayerStats'
+        byOption:
+          type: array
+          items:
+            type: object
+            required: [option, stats]
+            properties:
+              option:
+                type: object
+                required: [id, code, displayName]
+                properties:
+                  id:
+                    $ref: '#/components/schemas/Uuid'
+                  code:
+                    type: string
+                  displayName:
+                    type: string
+              stats:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MultiplayerPlayerStats'
+
+    MultiplayerPodiumStats:
+      type: object
+      required: [playerId, name, wins, seconds, thirds, podiums]
+      properties:
+        playerId:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        wins:
+          type: integer
+        seconds:
+          type: integer
+        thirds:
+          type: integer
+        podiums:
+          type: integer
+
+    OneVsOnePlayerStats:
+      type: object
+      required: [playerId, name, matches, wins, pointsFor, pointsAgainst]
+      properties:
+        playerId:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        matches:
+          type: integer
+        wins:
+          type: integer
+        draws:
+          type: integer
+          nullable: true
+        pointsFor:
+          type: integer
+        pointsAgainst:
+          type: integer
+
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          example: "ok"
+
+    Game:
+      type: object
+      required: [id, code, name, isActive]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        code:
+          type: string
+        name:
+          type: string
+        isActive:
+          type: boolean
+
+    GameDeleteResponse:
+      type: object
+      required: [id, code, name, deletedMatches]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        code:
+          type: string
+        name:
+          type: string
+        deletedMatches:
+          type: integer
+
+    Player:
+      type: object
+      required: [id, name, isActive, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          $ref: '#/components/schemas/DateTime'
+
+    PlayerDeleteResponse:
+      type: object
+      required:
+        [
+          player,
+          deletedOneVsOneMatches,
+          deletedMultiplayerParticipations,
+          deletedOrphanMultiplayerMatches,
+        ]
+      properties:
+        player:
+          $ref: '#/components/schemas/Player'
+        deletedOneVsOneMatches:
+          type: integer
+        deletedMultiplayerParticipations:
+          type: integer
+        deletedOrphanMultiplayerMatches:
+          type: integer
+
+    MatchSummary:
+      type: object
+      required: [id, playedOn, game, playerA, playerB, scoreA, scoreB, winner]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        game:
+          $ref: '#/components/schemas/Game'
+        playerA:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              $ref: '#/components/schemas/Uuid'
+            name:
+              type: string
+        playerB:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              $ref: '#/components/schemas/Uuid'
+            name:
+              type: string
+        scoreA:
+          type: integer
+        scoreB:
+          type: integer
+        winner:
+          type: string
+          enum: [A, B, DRAW]
+
+    MatchDetail:
+      allOf:
+        - $ref: '#/components/schemas/MatchSummary'
+        - type: object
+          required: [notes, createdAt, updatedAt]
+          properties:
+            notes:
+              type: string
+              nullable: true
+            createdAt:
+              $ref: '#/components/schemas/DateTime'
+            updatedAt:
+              $ref: '#/components/schemas/DateTime'
+
+    MatchListResponse:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchSummary'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    MatchCreate:
+      type: object
+      required: [gameId, playedOn, playerAId, playerBId, scoreA, scoreB]
+      properties:
+        gameId:
+          $ref: '#/components/schemas/Uuid'
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        playerAId:
+          $ref: '#/components/schemas/Uuid'
+        playerBId:
+          $ref: '#/components/schemas/Uuid'
+        scoreA:
+          type: integer
+          minimum: 0
+        scoreB:
+          type: integer
+          minimum: 0
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+
+    MatchPatch:
+      type: object
+      properties:
+        gameId:
+          $ref: '#/components/schemas/Uuid'
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        playerAId:
+          $ref: '#/components/schemas/Uuid'
+        playerBId:
+          $ref: '#/components/schemas/Uuid'
+        scoreA:
+          type: integer
+          minimum: 0
+        scoreB:
+          type: integer
+          minimum: 0
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+
+    PlayerCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+
+    PlayerPatch:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        isActive:
+          type: boolean
+
+    HeadToHeadStats:
+      type: object
+      required: [player1, player2, matches, player1Wins, player2Wins, draws]
+      properties:
+        player1:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              $ref: '#/components/schemas/Uuid'
+            name:
+              type: string
+        player2:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              $ref: '#/components/schemas/Uuid'
+            name:
+              type: string
+        matches:
+          type: integer
+        player1Wins:
+          type: integer
+        player2Wins:
+          type: integer
+        draws:
+          type: integer
+
+    TicketToRideMatchPlayer:
+      type: object
+      required:
+        [id, player, ticketsPoints, bonusPoints, trainsCounts, trainsPoints, totalPoints, place]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        player:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              $ref: '#/components/schemas/Uuid'
+            name:
+              type: string
+        ticketsPoints:
+          type: integer
+        bonusPoints:
+          type: integer
+        trainsCounts:
+          $ref: '#/components/schemas/TrainsCounts'
+        trainsPoints:
+          type: integer
+        totalPoints:
+          type: integer
+        place:
+          type: integer
+
+    TicketToRideMatch:
+      type: object
+      required: [id, playedOn, variant, players]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        variant:
+          $ref: '#/components/schemas/TicketToRideVariant'
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          $ref: '#/components/schemas/DateTime'
+        updatedAt:
+          $ref: '#/components/schemas/DateTime'
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketToRideMatchPlayer'
+
+    TicketToRideMatchListResponse:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketToRideMatch'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    TicketToRidePlayerStats:
+      type: object
+      required: [playerId, name, matches, wins, podiums, avgPoints, bestPoints]
+      properties:
+        playerId:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        matches:
+          type: integer
+        wins:
+          type: integer
+        podiums:
+          type: integer
+        avgPoints:
+          type: number
+          format: float
+        bestPoints:
+          type: integer
+
+    TicketToRideMatchCreate:
+      type: object
+      required: [playedOn, variantId, players]
+      properties:
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        variantId:
+          $ref: '#/components/schemas/Uuid'
+        notes:
+          type: string
+          maxLength: 2000
+          nullable: true
+        players:
+          type: array
+          minItems: 2
+          maxItems: 5
+          items:
+            type: object
+            required: [playerId, ticketsPoints, bonusPoints, trainsCounts]
+            properties:
+              playerId:
+                $ref: '#/components/schemas/Uuid'
+              ticketsPoints:
+                type: integer
+              bonusPoints:
+                type: integer
+                minimum: 0
+              trainsCounts:
+                $ref: '#/components/schemas/TrainsCounts'
+
+    TicketToRideMatchPatch:
+      type: object
+      properties:
+        playedOn:
+          $ref: '#/components/schemas/Date'
+        variantId:
+          $ref: '#/components/schemas/Uuid'
+        notes:
+          type: string
+          maxLength: 2000
+          nullable: true
+        players:
+          type: array
+          minItems: 2
+          maxItems: 5
+          items:
+            type: object
+            required: [playerId, ticketsPoints, bonusPoints, trainsCounts]
+            properties:
+              playerId:
+                $ref: '#/components/schemas/Uuid'
+              ticketsPoints:
+                type: integer
+              bonusPoints:
+                type: integer
+                minimum: 0
+              trainsCounts:
+                $ref: '#/components/schemas/TrainsCounts'
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFoundError:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ConflictError:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: Internal error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /games:
+    get:
+      summary: List 1v1 games
+      parameters:
+        - in: query
+          name: includeInactive
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Game'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /games/{id}:
+    patch:
+      summary: Update 1v1 game active flag
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [isActive]
+              properties:
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Game'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      summary: Delete 1v1 game with related matches
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDeleteResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /players:
+    get:
+      summary: List players
+      parameters:
+        - in: query
+          name: active
+          schema:
+            type: boolean
+            default: true
+        - in: query
+          name: q
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Player'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      summary: Create player
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlayerCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /players/{id}:
+    patch:
+      summary: Update player
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlayerPatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      summary: Delete player with related matches and stats
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerDeleteResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /matches:
+    get:
+      summary: List 1v1 matches
+      parameters:
+        - in: query
+          name: gameId
+          schema:
+            $ref: '#/components/schemas/Uuid'
+        - in: query
+          name: playerId
+          schema:
+            $ref: '#/components/schemas/Uuid'
+        - in: query
+          name: dateFrom
+          schema:
+            $ref: '#/components/schemas/Date'
+        - in: query
+          name: dateTo
+          schema:
+            $ref: '#/components/schemas/Date'
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [playedOnDesc]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      summary: Create 1v1 match
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /matches/export.csv:
+    get:
+      summary: Export 1v1 matches to CSV
+      parameters:
+        - in: query
+          name: gameId
+          schema:
+            $ref: '#/components/schemas/Uuid'
+        - in: query
+          name: playerId
+          schema:
+            $ref: '#/components/schemas/Uuid'
+        - in: query
+          name: dateFrom
+          schema:
+            $ref: '#/components/schemas/Date'
+        - in: query
+          name: dateTo
+          schema:
+            $ref: '#/components/schemas/Date'
+      responses:
+        '200':
+          description: CSV export
+          content:
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /matches/{id}:
+    get:
+      summary: Get 1v1 match by id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      summary: Update 1v1 match
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchPatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchDetail'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      summary: Delete 1v1 match
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /stats/head-to-head:
+    get:
+      summary: Head-to-head stats between two players
+      parameters:
+        - in: query
+          name: player1Id
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+        - in: query
+          name: player2Id
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+        - in: query
+          name: gameId
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeadToHeadStats'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ticket-to-ride/variants:
+    get:
+      summary: List Ticket to Ride variants (legacy endpoint)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TicketToRideVariant'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ticket-to-ride/stats/players:
+    get:
+      summary: Ticket to Ride player stats (legacy endpoint)
+      parameters:
+        - in: query
+          name: variantId
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TicketToRidePlayerStats'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ticket-to-ride/matches:
+    get:
+      summary: List Ticket to Ride matches (legacy endpoint)
+      parameters:
+        - in: query
+          name: dateFrom
+          schema:
+            $ref: '#/components/schemas/Date'
+        - in: query
+          name: dateTo
+          schema:
+            $ref: '#/components/schemas/Date'
+        - in: query
+          name: variantId
+          schema:
+            $ref: '#/components/schemas/Uuid'
+        - in: query
+          name: playerId
+          schema:
+            $ref: '#/components/schemas/Uuid'
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketToRideMatchListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      summary: Create Ticket to Ride match (legacy endpoint)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketToRideMatchCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketToRideMatch'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /ticket-to-ride/matches/{id}:
+    get:
+      summary: Get Ticket to Ride match by id (legacy endpoint)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketToRideMatch'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      summary: Update Ticket to Ride match (legacy endpoint)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketToRideMatchPatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketToRideMatch'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      summary: Delete Ticket to Ride match (legacy endpoint)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /multiplayer/games:
+    get:
+      summary: List multiplayer games
+      parameters:
+        - in: query
+          name: includeInactive
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiplayerGameList'
+              examples:
+                list:
+                  value:
+                    - id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                      code: "terraforming_mars"
+                      displayName: "Terraformacja Marsa"
+                      scoringType: "TM_CALCULATOR"
+                      minPlayers: 2
+                      maxPlayers: 5
+                      isActive: true
+                      inOneVsOne: false
+                      inMultiplayer: true
+                      optionsCount: 6
+                      requiresOption: true
+                      customFieldsCount: 0
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      summary: Create multiplayer game (manual or custom calculator)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MultiplayerGameCreateInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiplayerGame'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /multiplayer/games/{code}:
+    get:
+      summary: Get multiplayer game by code
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: includeInactive
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiplayerGame'
+              examples:
+                game:
+                  value:
+                    id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                    code: "ticket_to_ride"
+                    displayName: "Pociągi"
+                    scoringType: "TTR_CALCULATOR"
+                    minPlayers: 2
+                    maxPlayers: 5
+                    isActive: true
+                    inOneVsOne: false
+                    inMultiplayer: true
+                    optionsCount: 10
+                    requiresOption: true
+                    customFieldsCount: 0
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      summary: Update multiplayer game settings
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MultiplayerGamePatchInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiplayerGame'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      summary: Delete manual multiplayer game and clear related stats
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiplayerGameDeleteResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /multiplayer/games/{code}/options:
+    get:
+      summary: List active options for multiplayer game
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MultiplayerGameOption'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /multiplayer/games/{code}/calculator-fields:
+    get:
+      summary: List custom calculator fields for multiplayer game
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: includeInactive
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MultiplayerCustomCalculatorField'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /multiplayer/matches:
+    get:
+      summary: List multiplayer matches
+      parameters:
+        - in: query
+          name: gameId
+          schema:
+            $ref: '#/components/schemas/Uuid'
+        - in: query
+          name: playerId
+          schema:
+            $ref: '#/components/schemas/Uuid'
+        - in: query
+          name: dateFrom
+          schema:
+            $ref: '#/components/schemas/Date'
+        - in: query
+          name: dateTo
+          schema:
+            $ref: '#/components/schemas/Date'
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiplayerMatchListResponse'
+              examples:
+                list:
+                  value:
+                    items:
+                      - id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                        playedOn: "2026-01-30"
+                        game:
+                          id: "9f7f5c2d-5b2f-4e89-9b5b-2b7fb0c7ce12"
+                          code: "uno"
+                          displayName: "Uno"
+                        players:
+                          - playerId: "a3f3b1c6-2e6b-4d7e-9a0f-6b3f70e2b912"
+                            name: "Ada"
+                            totalPoints: 12
+                            place: 1
+                    total: 1
+                    limit: 50
+                    offset: 0
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      summary: Create multiplayer match
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MultiplayerMatchCreate'
+            examples:
+              manual:
+                value:
+                  scoringType: "MANUAL_POINTS"
+                  gameId: "9f7f5c2d-5b2f-4e89-9b5b-2b7fb0c7ce12"
+                  playedOn: "2026-01-20"
+                  notes: "Test manual points"
+                  players:
+                    - playerId: "a3f3b1c6-2e6b-4d7e-9a0f-6b3f70e2b912"
+                      totalPoints: 10
+                    - playerId: "c0a8017a-0000-0000-0000-000000000002"
+                      totalPoints: 7
+              ttr:
+                value:
+                  scoringType: "TTR_CALCULATOR"
+                  gameId: "9f7f5c2d-5b2f-4e89-9b5b-2b7fb0c7ce12"
+                  playedOn: "2026-01-21"
+                  ticketToRide:
+                    variantId: "d7f2d9b4-3d79-4bcb-9a2f-0f4a3beaf2f1"
+                  players:
+                    - playerId: "a3f3b1c6-2e6b-4d7e-9a0f-6b3f70e2b912"
+                      ticketsPoints: -5
+                      bonusPoints: 10
+                      trainsCounts: { "1": 3, "2": 3, "3": 0, "4": 1, "5": 0, "6": 0, "7": 1, "8": 0, "9": 0 }
+              tm:
+                value:
+                  scoringType: "TM_CALCULATOR"
+                  gameId: "9f7f5c2d-5b2f-4e89-9b5b-2b7fb0c7ce12"
+                  playedOn: "2026-01-22"
+                  terraformingMars: {}
+                  players:
+                    - playerId: "a3f3b1c6-2e6b-4d7e-9a0f-6b3f70e2b912"
+                      titlesCount: 2
+                      awardsFirstCount: 1
+                      awardsSecondCount: 0
+                      citiesPoints: 15
+                      forestsPoints: 8
+                      cardsPoints: 12
+                      trPoints: 35
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiplayerMatchResponse'
+              examples:
+                manual:
+                  value:
+                    id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                    game:
+                      id: "9f7f5c2d-5b2f-4e89-9b5b-2b7fb0c7ce12"
+                      code: "uno"
+                      displayName: "Uno"
+                      scoringType: "MANUAL_POINTS"
+                      minPlayers: 2
+                      maxPlayers: 5
+                    playedOn: "2026-01-20"
+                    notes: "Test manual points"
+                    players:
+                      - playerId: "a3f3b1c6-2e6b-4d7e-9a0f-6b3f70e2b912"
+                        name: "Ada"
+                        totalPoints: 10
+                        place: 1
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /multiplayer/matches/{id}:
+    get:
+      summary: Get multiplayer match by id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiplayerMatchResponse'
+              examples:
+                ttr:
+                  value:
+                    id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                    game:
+                      id: "9f7f5c2d-5b2f-4e89-9b5b-2b7fb0c7ce12"
+                      code: "ticket_to_ride"
+                      displayName: "Pociągi"
+                      scoringType: "TTR_CALCULATOR"
+                      minPlayers: 2
+                      maxPlayers: 5
+                    playedOn: "2026-01-21"
+                    notes: null
+                    players:
+                      - playerId: "a3f3b1c6-2e6b-4d7e-9a0f-6b3f70e2b912"
+                        name: "Ada"
+                        totalPoints: 20
+                        place: 1
+                    ticketToRide:
+                      variant:
+                        id: "d7f2d9b4-3d79-4bcb-9a2f-0f4a3beaf2f1"
+                        code: "europe"
+                        name: "Europa"
+                      playersDetails:
+                        - playerId: "a3f3b1c6-2e6b-4d7e-9a0f-6b3f70e2b912"
+                          ticketsPoints: -5
+                          bonusPoints: 10
+                          trainsCounts: { "1": 3, "2": 3, "3": 0, "4": 1, "5": 0, "6": 0, "7": 1, "8": 0, "9": 0 }
+                          trainsPoints: 18
+                          totalPoints: 23
+                          place: 1
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      summary: Update multiplayer match
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MultiplayerMatchPatch'
+            examples:
+              manual:
+                value:
+                  scoringType: "MANUAL_POINTS"
+                  players:
+                    - playerId: "a3f3b1c6-2e6b-4d7e-9a0f-6b3f70e2b912"
+                      totalPoints: 9
+                    - playerId: "c0a8017a-0000-0000-0000-000000000002"
+                      totalPoints: 11
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiplayerMatchResponse'
+              examples:
+                updated:
+                  value:
+                    id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                    game:
+                      id: "9f7f5c2d-5b2f-4e89-9b5b-2b7fb0c7ce12"
+                      code: "uno"
+                      displayName: "Uno"
+                      scoringType: "MANUAL_POINTS"
+                      minPlayers: 2
+                      maxPlayers: 5
+                    playedOn: "2026-01-20"
+                    notes: "Updated notes"
+                    players:
+                      - playerId: "a3f3b1c6-2e6b-4d7e-9a0f-6b3f70e2b912"
+                        name: "Ada"
+                        totalPoints: 11
+                        place: 1
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      summary: Delete multiplayer match
+      responses:
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /multiplayer/stats/players:
+    get:
+      summary: Multiplayer stats per game
+      parameters:
+        - in: query
+          name: gameId
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MultiplayerPlayerStats'
+              examples:
+                stats:
+                  value:
+                    - playerId: "a3f3b1c6-2e6b-4d7e-9a0f-6b3f70e2b912"
+                      name: "Ada"
+                      matches: 12
+                      wins: 5
+                      seconds: 4
+                      thirds: 2
+                      podiums: 11
+                      avgPoints: 72.5
+                      bestPoints: 112
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /multiplayer/stats/players-by-option:
+    get:
+      summary: Multiplayer stats per game option
+      parameters:
+        - in: query
+          name: gameId
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiplayerPlayerStatsByOption'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /multiplayer/stats/podiums:
+    get:
+      summary: Multiplayer podium stats across all games
+      parameters:
+        - in: query
+          name: dateFrom
+          schema:
+            $ref: '#/components/schemas/Date'
+        - in: query
+          name: dateTo
+          schema:
+            $ref: '#/components/schemas/Date'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MultiplayerPodiumStats'
+              examples:
+                podiums:
+                  value:
+                    - playerId: "a3f3b1c6-2e6b-4d7e-9a0f-6b3f70e2b912"
+                      name: "Ada"
+                      wins: 10
+                      seconds: 6
+                      thirds: 4
+                      podiums: 20
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /multiplayer/ticket-to-ride/variants:
+    get:
+      summary: List Ticket to Ride variants (multiplayer)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TicketToRideVariant'
+              examples:
+                variants:
+                  value:
+                    - id: "d7f2d9b4-3d79-4bcb-9a2f-0f4a3beaf2f1"
+                      code: "europe"
+                      name: "Europa"
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /stats/players:
+    get:
+      summary: 1v1 stats per game
+      parameters:
+        - in: query
+          name: gameId
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+        - in: query
+          name: activeOnly
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OneVsOnePlayerStats'
+              examples:
+                stats:
+                  value:
+                    - playerId: "a3f3b1c6-2e6b-4d7e-9a0f-6b3f70e2b912"
+                      name: "Kuba"
+                      matches: 10
+                      wins: 6
+                      draws: 1
+                      pointsFor: 23
+                      pointsAgainst: 17
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'

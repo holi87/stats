@@ -1,0 +1,51 @@
+name: game-stats-mac
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gamestats}
+      POSTGRES_USER: ${POSTGRES_USER:-gamestats}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gamestats}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: sh -c "if [ ! -d node_modules ]; then npm install; fi; npm start"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DB_BOOTSTRAP: ${DB_BOOTSTRAP:-false}
+      PORT: ${BACKEND_PORT:-3002}
+      CORS_ORIGIN: "${CORS_ORIGIN:-https://stats.sh.info.pl}"
+      DATABASE_URL: "${DATABASE_URL:-postgresql://${POSTGRES_USER:-gamestats}:${POSTGRES_PASSWORD:-gamestats}@postgres:5432/${POSTGRES_DB:-gamestats}}"
+    ports:
+      - "8500:${BACKEND_PORT:-3002}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: sh -c "if [ ! -d node_modules ]; then npm install; fi; npm run build && npm run preview -- --host 0.0.0.0 --port ${FRONTEND_PORT:-5173}"
+    environment:
+      PORT: ${FRONTEND_PORT:-5173}
+      VITE_API_BASE_URL: "${VITE_API_BASE_URL:-https://stats.sh.info.pl}"
+    ports:
+      - "8501:${FRONTEND_PORT:-5173}"
+    depends_on:
+      - backend
+
+volumes:
+  db-data:
