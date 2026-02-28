@@ -64,6 +64,83 @@ function isUuid(value) {
   );
 }
 
+function normalizeCalculatorButtonLabel(value, details, field = 'calculatorButtonLabel') {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null) {
+    return null;
+  }
+  if (typeof value !== 'string') {
+    details.push({ field, message: 'must be a string' });
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed === '') {
+    return null;
+  }
+  if (trimmed.length > 40) {
+    details.push({ field, message: 'max length is 40' });
+    return undefined;
+  }
+
+  return trimmed;
+}
+
+function normalizeCalculatorUrl(value, details, field = 'calculatorUrl') {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null) {
+    return null;
+  }
+  if (typeof value !== 'string') {
+    details.push({ field, message: 'must be a string' });
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed === '') {
+    return null;
+  }
+  if (trimmed.length > 400) {
+    details.push({ field, message: 'max length is 400' });
+    return undefined;
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        details.push({ field, message: 'must use http or https' });
+        return undefined;
+      }
+      return parsed.toString();
+    } catch (_error) {
+      details.push({ field, message: 'must be a valid URL or local path' });
+      return undefined;
+    }
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+    details.push({ field, message: 'only http/https URLs are allowed' });
+    return undefined;
+  }
+  if (trimmed.includes(' ')) {
+    details.push({ field, message: 'cannot contain spaces' });
+    return undefined;
+  }
+
+  const normalizedPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  if (normalizedPath.startsWith('//')) {
+    details.push({ field, message: 'protocol-relative paths are not allowed' });
+    return undefined;
+  }
+
+  return normalizedPath;
+}
+
 router.get('/multiplayer/games', async (req, res, next) => {
   try {
     const includeInactive = parseBooleanQuery(req.query.includeInactive, false);
@@ -90,6 +167,8 @@ router.post('/multiplayer/games', async (req, res, next) => {
       showInQuickMenu,
       isActive,
       optionsExclusive,
+      calculatorButtonLabel,
+      calculatorUrl,
       scoringType,
       customCalculator,
     } = req.body || {};
@@ -167,6 +246,16 @@ router.post('/multiplayer/games', async (req, res, next) => {
       } else {
         normalizedOptionsExclusive = optionsExclusive;
       }
+    }
+
+    let normalizedCalculatorButtonLabel = normalizeCalculatorButtonLabel(
+      calculatorButtonLabel,
+      details
+    );
+    let normalizedCalculatorUrl = normalizeCalculatorUrl(calculatorUrl, details);
+
+    if (normalizedCalculatorUrl && !normalizedCalculatorButtonLabel) {
+      normalizedCalculatorButtonLabel = 'Kalkulator';
     }
 
     let normalizedScoringType = 'MANUAL_POINTS';
@@ -302,6 +391,8 @@ router.post('/multiplayer/games', async (req, res, next) => {
               showInQuickMenu: normalizedShowInQuickMenu,
               isActive: normalizedIsActive,
               optionsExclusive: normalizedOptionsExclusive,
+              calculatorButtonLabel: normalizedCalculatorButtonLabel,
+              calculatorUrl: normalizedCalculatorUrl,
               fields: normalizedCustomFields,
             })
           : await createManualMultiplayerGame({
@@ -312,6 +403,8 @@ router.post('/multiplayer/games', async (req, res, next) => {
               showInQuickMenu: normalizedShowInQuickMenu,
               isActive: normalizedIsActive,
               optionsExclusive: normalizedOptionsExclusive,
+              calculatorButtonLabel: normalizedCalculatorButtonLabel,
+              calculatorUrl: normalizedCalculatorUrl,
             });
 
       return res.status(201).json(created);
@@ -392,8 +485,16 @@ router.patch('/multiplayer/games/:code', async (req, res, next) => {
       return next(notFound('Multiplayer game not found'));
     }
 
-    const { displayName, minPlayers, maxPlayers, showInQuickMenu, isActive, optionsExclusive } =
-      req.body || {};
+    const {
+      displayName,
+      minPlayers,
+      maxPlayers,
+      showInQuickMenu,
+      isActive,
+      optionsExclusive,
+      calculatorButtonLabel,
+      calculatorUrl,
+    } = req.body || {};
     const details = [];
 
     const hasDisplayName = displayName !== undefined;
@@ -402,6 +503,8 @@ router.patch('/multiplayer/games/:code', async (req, res, next) => {
     const hasShowInQuickMenu = showInQuickMenu !== undefined;
     const hasIsActive = isActive !== undefined;
     const hasOptionsExclusive = optionsExclusive !== undefined;
+    const hasCalculatorButtonLabel = calculatorButtonLabel !== undefined;
+    const hasCalculatorUrl = calculatorUrl !== undefined;
 
     if (
       !hasDisplayName &&
@@ -409,14 +512,16 @@ router.patch('/multiplayer/games/:code', async (req, res, next) => {
       !hasMaxPlayers &&
       !hasShowInQuickMenu &&
       !hasIsActive &&
-      !hasOptionsExclusive
+      !hasOptionsExclusive &&
+      !hasCalculatorButtonLabel &&
+      !hasCalculatorUrl
     ) {
       return next(
         validationError([
           {
             field: 'body',
             message:
-              'must include at least one of: displayName, minPlayers, maxPlayers, showInQuickMenu, isActive, optionsExclusive',
+              'must include at least one of: displayName, minPlayers, maxPlayers, showInQuickMenu, isActive, optionsExclusive, calculatorButtonLabel, calculatorUrl',
           },
         ])
       );
@@ -484,6 +589,26 @@ router.patch('/multiplayer/games/:code', async (req, res, next) => {
       }
     }
 
+    let normalizedCalculatorButtonLabel = normalizeCalculatorButtonLabel(
+      calculatorButtonLabel,
+      details
+    );
+    let normalizedCalculatorUrl = normalizeCalculatorUrl(calculatorUrl, details);
+
+    if (hasCalculatorUrl && normalizedCalculatorUrl === null && !hasCalculatorButtonLabel) {
+      normalizedCalculatorButtonLabel = null;
+    }
+    if (
+      normalizedCalculatorUrl &&
+      normalizedCalculatorButtonLabel === undefined &&
+      !existing.calculatorButtonLabel
+    ) {
+      normalizedCalculatorButtonLabel = 'Kalkulator';
+    }
+    if (normalizedCalculatorUrl && !normalizedCalculatorButtonLabel && hasCalculatorButtonLabel) {
+      normalizedCalculatorButtonLabel = 'Kalkulator';
+    }
+
     if (details.length === 0) {
       const effectiveMinPlayers = normalizedMinPlayers ?? existing.minPlayers;
       const effectiveMaxPlayers = normalizedMaxPlayers ?? existing.maxPlayers;
@@ -504,6 +629,8 @@ router.patch('/multiplayer/games/:code', async (req, res, next) => {
       showInQuickMenu: normalizedShowInQuickMenu,
       isActive: normalizedIsActive,
       optionsExclusive: normalizedOptionsExclusive,
+      calculatorButtonLabel: normalizedCalculatorButtonLabel,
+      calculatorUrl: normalizedCalculatorUrl,
     });
     if (!updated) {
       return next(notFound('Multiplayer game not found'));

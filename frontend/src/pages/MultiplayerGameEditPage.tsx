@@ -17,6 +17,8 @@ import { useToast } from '../components/ui/ToastProvider';
 
 type EditDraft = {
   displayName: string;
+  calculatorButtonLabel: string;
+  calculatorUrl: string;
   minPlayers: string;
   maxPlayers: string;
   isActive: boolean;
@@ -27,6 +29,8 @@ type EditDraft = {
 function createEmptyDraft(): EditDraft {
   return {
     displayName: '',
+    calculatorButtonLabel: '',
+    calculatorUrl: '',
     minPlayers: '',
     maxPlayers: '',
     isActive: true,
@@ -72,6 +76,8 @@ export function MultiplayerGameEditPage() {
     }
     setDraft({
       displayName: game.displayName,
+      calculatorButtonLabel: game.calculatorButtonLabel ?? '',
+      calculatorUrl: game.calculatorUrl ?? '',
       minPlayers: String(game.minPlayers),
       maxPlayers: String(game.maxPlayers),
       isActive: game.isActive,
@@ -167,10 +173,26 @@ export function MultiplayerGameEditPage() {
       notify('Minimalna liczba graczy nie może być większa od maksymalnej.', 'error');
       return;
     }
+    const calculatorButtonLabel = draft.calculatorButtonLabel.trim();
+    const calculatorUrl = draft.calculatorUrl.trim();
+    if (calculatorButtonLabel.length > 40) {
+      notify('Nazwa przycisku kalkulatora może mieć maksymalnie 40 znaków.', 'error');
+      return;
+    }
+    if (calculatorUrl.length > 400) {
+      notify('Adres kalkulatora może mieć maksymalnie 400 znaków.', 'error');
+      return;
+    }
+    if (calculatorUrl.includes(' ')) {
+      notify('Adres kalkulatora nie może zawierać spacji.', 'error');
+      return;
+    }
 
     const payload: {
       code: string;
       displayName?: string;
+      calculatorButtonLabel?: string | null;
+      calculatorUrl?: string | null;
       minPlayers?: number;
       maxPlayers?: number;
       isActive?: boolean;
@@ -181,6 +203,14 @@ export function MultiplayerGameEditPage() {
     let hasChanges = false;
     if (displayName !== game.displayName) {
       payload.displayName = displayName;
+      hasChanges = true;
+    }
+    if (calculatorButtonLabel !== (game.calculatorButtonLabel ?? '')) {
+      payload.calculatorButtonLabel = calculatorButtonLabel || null;
+      hasChanges = true;
+    }
+    if (calculatorUrl !== (game.calculatorUrl ?? '')) {
+      payload.calculatorUrl = calculatorUrl || null;
       hasChanges = true;
     }
     if (minPlayers !== game.minPlayers) {
@@ -324,6 +354,28 @@ export function MultiplayerGameEditPage() {
             <label className="form-field">
               <span>Kod gry</span>
               <Input value={game.code} disabled />
+            </label>
+            <label className="form-field">
+              <span>Nazwa przycisku kalkulatora</span>
+              <Input
+                value={draft.calculatorButtonLabel}
+                maxLength={40}
+                onChange={(event) =>
+                  setDraft((prev) => ({ ...prev, calculatorButtonLabel: event.target.value }))
+                }
+                placeholder="Domyślnie: Kalkulator"
+              />
+            </label>
+            <label className="form-field">
+              <span>Adres kalkulatora</span>
+              <Input
+                value={draft.calculatorUrl}
+                maxLength={400}
+                onChange={(event) =>
+                  setDraft((prev) => ({ ...prev, calculatorUrl: event.target.value }))
+                }
+                placeholder="Np. costam albo https://twoja-domena.pl/kalkulator"
+              />
             </label>
             <label className="form-field">
               <span>Min. gracze</span>

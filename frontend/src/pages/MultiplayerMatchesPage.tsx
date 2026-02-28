@@ -21,6 +21,32 @@ import { Spinner } from '../components/ui/Spinner';
 import { useToast } from '../components/ui/ToastProvider';
 import { isBaseGameOption } from '../utils/multiplayerOptions';
 
+function resolveCalculatorHref(rawUrl: string | null | undefined) {
+  if (!rawUrl) {
+    return null;
+  }
+
+  const trimmed = rawUrl.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+    return null;
+  }
+
+  const normalized = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  if (normalized.startsWith('//')) {
+    return null;
+  }
+
+  return normalized;
+}
+
 export function MultiplayerMatchesPage() {
   const { gameCode } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -243,14 +269,29 @@ export function MultiplayerMatchesPage() {
     }
     return visibleOptions.map((option) => option.displayName).join(', ');
   };
+  const calculatorHref = resolveCalculatorHref(game.calculatorUrl);
+  const calculatorLabel = game.calculatorButtonLabel?.trim() || 'Kalkulator';
+  const isExternalCalculator = Boolean(calculatorHref && /^https?:\/\//i.test(calculatorHref));
 
   return (
     <>
       <div className="page-header-row">
         <PageHeader title={`${game.displayName} • Mecze`} />
-        <Link className="button primary" to={`/games/${game.code}/matches/new${searchSuffix}`}>
-          Dodaj mecz
-        </Link>
+        <div className="page-header-actions">
+          {calculatorHref ? (
+            <a
+              className="button secondary"
+              href={calculatorHref}
+              target={isExternalCalculator ? '_blank' : undefined}
+              rel={isExternalCalculator ? 'noreferrer noopener' : undefined}
+            >
+              {calculatorLabel}
+            </a>
+          ) : null}
+          <Link className="button primary" to={`/games/${game.code}/matches/new${searchSuffix}`}>
+            Dodaj mecz
+          </Link>
+        </div>
       </div>
 
       <div className="filters">

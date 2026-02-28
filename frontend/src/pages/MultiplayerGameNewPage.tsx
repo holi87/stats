@@ -61,6 +61,8 @@ export function MultiplayerGameNewPage() {
 
   const [displayName, setDisplayName] = useState('');
   const [code, setCode] = useState('');
+  const [calculatorButtonLabel, setCalculatorButtonLabel] = useState('');
+  const [calculatorUrl, setCalculatorUrl] = useState('');
   const [minPlayers, setMinPlayers] = useState(1);
   const [maxPlayers, setMaxPlayers] = useState(4);
   const [showInQuickMenu, setShowInQuickMenu] = useState(true);
@@ -107,6 +109,18 @@ export function MultiplayerGameNewPage() {
 
     if (minPlayers > maxPlayers) {
       nextErrors.minPlayers = 'Musi być <= maksymalnej liczby graczy';
+    }
+
+    const normalizedCalculatorUrl = calculatorUrl.trim();
+    const normalizedCalculatorButtonLabel = calculatorButtonLabel.trim();
+    if (normalizedCalculatorButtonLabel.length > 40) {
+      nextErrors.calculatorButtonLabel = 'Maksymalnie 40 znaków';
+    }
+    if (normalizedCalculatorUrl.length > 400) {
+      nextErrors.calculatorUrl = 'Maksymalnie 400 znaków';
+    }
+    if (normalizedCalculatorUrl.includes(' ')) {
+      nextErrors.calculatorUrl = 'Adres nie może zawierać spacji';
     }
 
     if (scoringType === 'CUSTOM_CALCULATOR') {
@@ -177,6 +191,8 @@ export function MultiplayerGameNewPage() {
       const created = await createGame.mutateAsync({
         displayName: displayName.trim(),
         code: code.trim() || undefined,
+        calculatorButtonLabel: calculatorButtonLabel.trim() || undefined,
+        calculatorUrl: calculatorUrl.trim() || undefined,
         scoringType,
         minPlayers,
         maxPlayers,
@@ -279,6 +295,32 @@ export function MultiplayerGameNewPage() {
                 <option value="exclusive">Wykluczające się (wybór jednego)</option>
                 <option value="multi">Łączone (wiele dodatków)</option>
               </Select>
+            </FormField>
+            <FormField
+              label="Przycisk kalkulatora (opcjonalnie)"
+              htmlFor="multiplayer-game-calculator-label"
+              error={errors.calculatorButtonLabel}
+            >
+              <Input
+                id="multiplayer-game-calculator-label"
+                value={calculatorButtonLabel}
+                onChange={(event) => setCalculatorButtonLabel(event.target.value)}
+                placeholder="Np. Kalkulator punktów końcowych"
+                hasError={Boolean(errors.calculatorButtonLabel)}
+              />
+            </FormField>
+            <FormField
+              label="Adres kalkulatora (opcjonalnie)"
+              htmlFor="multiplayer-game-calculator-url"
+              error={errors.calculatorUrl}
+            >
+              <Input
+                id="multiplayer-game-calculator-url"
+                value={calculatorUrl}
+                onChange={(event) => setCalculatorUrl(event.target.value)}
+                placeholder="Np. costam albo https://twoja-domena.pl/kalkulator"
+                hasError={Boolean(errors.calculatorUrl)}
+              />
             </FormField>
             <div className="visibility-options">
               <p className="visibility-options-title">Widoczność gry</p>

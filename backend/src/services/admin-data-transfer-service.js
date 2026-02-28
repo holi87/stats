@@ -289,6 +289,27 @@ function validateMultiplayerGames(records, details) {
     ) {
       pushError(details, `${base}.optionsExclusive`, 'must be a boolean or null');
     }
+    if (
+      row.calculatorButtonLabel !== undefined &&
+      row.calculatorButtonLabel !== null &&
+      (typeof row.calculatorButtonLabel !== 'string' || row.calculatorButtonLabel.trim() === '')
+    ) {
+      pushError(details, `${base}.calculatorButtonLabel`, 'must be a non-empty string or null');
+    } else if (
+      typeof row.calculatorButtonLabel === 'string' &&
+      row.calculatorButtonLabel.trim().length > 40
+    ) {
+      pushError(details, `${base}.calculatorButtonLabel`, 'max length is 40');
+    }
+    if (
+      row.calculatorUrl !== undefined &&
+      row.calculatorUrl !== null &&
+      (typeof row.calculatorUrl !== 'string' || row.calculatorUrl.trim() === '')
+    ) {
+      pushError(details, `${base}.calculatorUrl`, 'must be a non-empty string or null');
+    } else if (typeof row.calculatorUrl === 'string' && row.calculatorUrl.trim().length > 400) {
+      pushError(details, `${base}.calculatorUrl`, 'max length is 400');
+    }
     if (!isOptionalTimestamp(row.createdAt)) {
       pushError(details, `${base}.createdAt`, 'must be an ISO timestamp');
     }
@@ -951,6 +972,8 @@ async function fetchDataExportSnapshot() {
          id,
          code,
          display_name,
+         calculator_button_label,
+         calculator_url,
          scoring_type,
          min_players,
          max_players,
@@ -1061,6 +1084,8 @@ async function fetchDataExportSnapshot() {
         id: row.id,
         code: row.code,
         displayName: row.display_name,
+        calculatorButtonLabel: row.calculator_button_label,
+        calculatorUrl: row.calculator_url,
         scoringType: row.scoring_type,
         minPlayers: row.min_players,
         maxPlayers: row.max_players,
@@ -1240,6 +1265,8 @@ async function applyPreparedDataImport({ collections }) {
            id,
            code,
            display_name,
+           calculator_button_label,
+           calculator_url,
            scoring_type,
            min_players,
            max_players,
@@ -1248,10 +1275,12 @@ async function applyPreparedDataImport({ collections }) {
            visible_in_multiplayer,
            options_exclusive,
            created_at
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11::timestamptz, now()))
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, COALESCE($13::timestamptz, now()))
          ON CONFLICT (code) DO UPDATE
          SET id = EXCLUDED.id,
              display_name = EXCLUDED.display_name,
+             calculator_button_label = EXCLUDED.calculator_button_label,
+             calculator_url = EXCLUDED.calculator_url,
              scoring_type = EXCLUDED.scoring_type,
              min_players = EXCLUDED.min_players,
              max_players = EXCLUDED.max_players,
@@ -1263,6 +1292,8 @@ async function applyPreparedDataImport({ collections }) {
           row.id,
           row.code,
           row.displayName,
+          row.calculatorButtonLabel === undefined ? null : row.calculatorButtonLabel,
+          row.calculatorUrl === undefined ? null : row.calculatorUrl,
           row.scoringType,
           row.minPlayers,
           row.maxPlayers,

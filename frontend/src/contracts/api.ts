@@ -35,6 +35,8 @@ export type MultiplayerGame = {
   id: Uuid;
   code: string;
   displayName: string;
+  calculatorButtonLabel?: string | null;
+  calculatorUrl?: string | null;
   scoringType: ScoringType;
   minPlayers: number;
   maxPlayers: number;
@@ -402,6 +404,8 @@ export type MultiplayerMatchesQuery = {
 export type MultiplayerGameCreateInput = {
   code?: string;
   displayName: string;
+  calculatorButtonLabel?: string | null;
+  calculatorUrl?: string | null;
   scoringType?: 'MANUAL_POINTS' | 'CUSTOM_CALCULATOR';
   minPlayers?: number;
   maxPlayers?: number;
@@ -420,6 +424,8 @@ export type MultiplayerGameCreateInput = {
 
 export type MultiplayerGameUpdateInput = {
   displayName?: string;
+  calculatorButtonLabel?: string | null;
+  calculatorUrl?: string | null;
   minPlayers?: number;
   maxPlayers?: number;
   showInQuickMenu?: boolean;
@@ -506,6 +512,8 @@ export type AdminDataSnapshot = {
       id: Uuid;
       code: string;
       displayName: string;
+      calculatorButtonLabel?: string | null;
+      calculatorUrl?: string | null;
       scoringType: ScoringType;
       minPlayers: number;
       maxPlayers: number;

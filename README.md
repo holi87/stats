@@ -83,6 +83,10 @@ API i UI:
 - API akceptuje `optionIds` (oraz legacy `optionId` dla kompatybilności).
 - API pozwala też zmieniać nazwy dodatków istniejących rekordów:
   - `PATCH /api/v1/multiplayer/games/:code/options/:optionId` (`displayName`).
+- Dla gry można skonfigurować przycisk kalkulatora:
+  - `calculatorButtonLabel` (etykieta przycisku),
+  - `calculatorUrl` (link lokalny lub pełny `http/https`).
+- Link lokalny (np. `costam`) jest normalizowany do ścieżki aplikacji (`/costam`).
 - UI renderuje:
   - single select/radio dla `optionsExclusive=true`,
   - checkboxy dla `optionsExclusive=false`.

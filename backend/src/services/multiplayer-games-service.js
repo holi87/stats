@@ -9,6 +9,8 @@ function mapGameRow(row) {
     id: row.id,
     code: row.code,
     displayName: row.display_name,
+    calculatorButtonLabel: row.calculator_button_label ?? null,
+    calculatorUrl: row.calculator_url ?? null,
     scoringType: row.scoring_type,
     minPlayers: row.min_players,
     maxPlayers: row.max_players,
@@ -64,6 +66,8 @@ async function listMultiplayerGames(options = {}) {
       g.id,
       g.code,
       g.display_name,
+     g.calculator_button_label,
+     g.calculator_url,
      g.scoring_type,
      g.min_players,
      g.max_players,
@@ -99,6 +103,8 @@ async function getMultiplayerGameById(id) {
       g.id,
       g.code,
       g.display_name,
+      g.calculator_button_label,
+      g.calculator_url,
       g.scoring_type,
       g.min_players,
       g.max_players,
@@ -145,6 +151,8 @@ async function getMultiplayerGameByCode(code, options = {}) {
       g.id,
       g.code,
       g.display_name,
+      g.calculator_button_label,
+      g.calculator_url,
       g.scoring_type,
       g.min_players,
       g.max_players,
@@ -182,6 +190,8 @@ async function createManualMultiplayerGame({
   showInQuickMenu,
   isActive,
   optionsExclusive,
+  calculatorButtonLabel,
+  calculatorUrl,
 }) {
   const normalizedShowInQuickMenu = showInQuickMenu !== false;
   const normalizedIsActive = isActive !== false;
@@ -199,12 +209,16 @@ async function createManualMultiplayerGame({
         visible_in_one_vs_one,
         visible_in_multiplayer,
         options_exclusive,
+        calculator_button_label,
+        calculator_url,
         is_active
-      ) VALUES ($1, $2, 'MANUAL_POINTS', $3, $4, false, $5, $6, $7)
+      ) VALUES ($1, $2, 'MANUAL_POINTS', $3, $4, false, $5, $6, $7, $8, $9)
       RETURNING
         id,
         code,
         display_name,
+        calculator_button_label,
+        calculator_url,
         scoring_type,
         min_players,
         max_players,
@@ -220,6 +234,8 @@ async function createManualMultiplayerGame({
         maxPlayers,
         normalizedShowInQuickMenu,
         normalizedOptionsExclusive,
+        calculatorButtonLabel ?? null,
+        calculatorUrl ?? null,
         normalizedIsActive,
       ]
     );
@@ -247,6 +263,8 @@ async function createCustomMultiplayerGame({
   showInQuickMenu,
   isActive,
   optionsExclusive,
+  calculatorButtonLabel,
+  calculatorUrl,
   fields,
 }) {
   const normalizedShowInQuickMenu = showInQuickMenu !== false;
@@ -268,8 +286,10 @@ async function createCustomMultiplayerGame({
         visible_in_one_vs_one,
         visible_in_multiplayer,
         options_exclusive,
+        calculator_button_label,
+        calculator_url,
         is_active
-      ) VALUES ($1, $2, 'CUSTOM_CALCULATOR', $3, $4, false, $5, $6, $7)
+      ) VALUES ($1, $2, 'CUSTOM_CALCULATOR', $3, $4, false, $5, $6, $7, $8, $9)
       RETURNING id`,
       [
         code,
@@ -278,6 +298,8 @@ async function createCustomMultiplayerGame({
         maxPlayers,
         normalizedShowInQuickMenu,
         normalizedOptionsExclusive,
+        calculatorButtonLabel ?? null,
+        calculatorUrl ?? null,
         normalizedIsActive,
       ]
     );
@@ -323,6 +345,8 @@ async function updateMultiplayerGame({
   showInQuickMenu,
   isActive,
   optionsExclusive,
+  calculatorButtonLabel,
+  calculatorUrl,
 }) {
   const current = await getMultiplayerGameByCode(code, { includeInactive: true });
   if (!current) {
@@ -360,6 +384,16 @@ async function updateMultiplayerGame({
   if (optionsExclusive !== undefined) {
     params.push(optionsExclusive);
     fields.push(`options_exclusive = $${params.length}`);
+  }
+
+  if (calculatorButtonLabel !== undefined) {
+    params.push(calculatorButtonLabel);
+    fields.push(`calculator_button_label = $${params.length}`);
+  }
+
+  if (calculatorUrl !== undefined) {
+    params.push(calculatorUrl);
+    fields.push(`calculator_url = $${params.length}`);
   }
 
   if (fields.length === 0) {

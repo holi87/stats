@@ -25,6 +25,10 @@
 - Base option (`Podstawa`/`base`) is now treated as implicit:
   - not required in match create/edit forms,
   - hidden in option filters and option-specific stats sections.
+- Added per-game calculator button configuration:
+  - admin can set `calculatorButtonLabel` and `calculatorUrl`,
+  - match results page shows calculator button when URL is configured,
+  - local URL values are treated as app-relative paths (e.g. `costam` -> `/costam`).
 
 ### Admin export/import
 - Added admin JSON export endpoint.
