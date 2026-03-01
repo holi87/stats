@@ -6,12 +6,10 @@ import {
   useMultiplayerGameCustomFields,
   useMultiplayerGameOptions,
   usePlayers,
-  useTicketToRideVariants,
 } from '../api/hooks';
 import { MultiplayerCustomCalculatorMatchForm } from '../components/MultiplayerCustomCalculatorMatchForm';
 import { MultiplayerManualMatchForm } from '../components/MultiplayerManualMatchForm';
 import { MultiplayerTerraformingMarsMatchForm } from '../components/MultiplayerTerraformingMarsMatchForm';
-import { MultiplayerTicketToRideMatchForm } from '../components/MultiplayerTicketToRideMatchForm';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
@@ -39,12 +37,6 @@ export function MultiplayerMatchNewPage() {
     refetch: refetchPlayers,
   } = usePlayers({ active: true });
   const {
-    data: variants = [],
-    isLoading: variantsLoading,
-    isError: variantsError,
-    refetch: refetchVariants,
-  } = useTicketToRideVariants({ enabled: game?.scoringType === 'TTR_CALCULATOR' });
-  const {
     data: gameOptions = [],
     isLoading: gameOptionsLoading,
     isError: gameOptionsError,
@@ -52,6 +44,7 @@ export function MultiplayerMatchNewPage() {
   } = useMultiplayerGameOptions(gameCode, {
     enabled:
       game?.scoringType === 'MANUAL_POINTS' ||
+      game?.scoringType === 'TTR_CALCULATOR' ||
       game?.scoringType === 'TM_CALCULATOR' ||
       game?.scoringType === 'CUSTOM_CALCULATOR',
   });
@@ -73,8 +66,8 @@ export function MultiplayerMatchNewPage() {
   if (
     gameLoading ||
     playersLoading ||
-    (game?.scoringType === 'TTR_CALCULATOR' && variantsLoading) ||
     ((game?.scoringType === 'MANUAL_POINTS' ||
+      game?.scoringType === 'TTR_CALCULATOR' ||
       game?.scoringType === 'TM_CALCULATOR' ||
       game?.scoringType === 'CUSTOM_CALCULATOR') &&
       gameOptionsLoading)
@@ -111,7 +104,6 @@ export function MultiplayerMatchNewPage() {
   if (
     gameError ||
     playersError ||
-    variantsError ||
     gameOptionsError ||
     customCalculatorFieldsError
   ) {
@@ -124,7 +116,6 @@ export function MultiplayerMatchNewPage() {
             onRetry={() => {
               refetchGame();
               refetchPlayers();
-              refetchVariants();
               refetchGameOptions();
               refetchCustomCalculatorFields();
             }}
@@ -190,26 +181,6 @@ export function MultiplayerMatchNewPage() {
     });
   };
 
-  const handleSubmitTtr = async (values: {
-    playedOn: string;
-    notes: string;
-    variantId: string;
-    players: { playerId: string; ticketsPoints: number; bonusPoints: number; trainsCounts: Record<string, number> }[];
-  }) => {
-    await createMatch.mutateAsync({
-      gameId: game.id,
-      playedOn: values.playedOn,
-      notes: values.notes.trim() ? values.notes : undefined,
-      ticketToRide: { variantId: values.variantId },
-      players: values.players.map((player) => ({
-        playerId: player.playerId,
-        ticketsPoints: player.ticketsPoints,
-        bonusPoints: player.bonusPoints,
-        trainsCounts: player.trainsCounts,
-      })),
-    });
-  };
-
   const handleSubmitTm = async (values: {
     playedOn: string;
     notes: string;
@@ -266,7 +237,10 @@ export function MultiplayerMatchNewPage() {
     navigate(`/games/${game.code}/matches${location.search || ''}`);
   };
 
-  const useManualForm = game.scoringType === 'MANUAL_POINTS' || (useSimpleTmMode && game.scoringType === 'TM_CALCULATOR');
+  const useManualForm =
+    game.scoringType === 'MANUAL_POINTS' ||
+    game.scoringType === 'TTR_CALCULATOR' ||
+    (useSimpleTmMode && game.scoringType === 'TM_CALCULATOR');
 
   return (
     <section>
@@ -278,15 +252,6 @@ export function MultiplayerMatchNewPage() {
             players={players}
             gameOptions={gameOptions}
             onSubmit={handleSubmitManual}
-            onSuccess={handleSuccess}
-            submitLabel="Zapisz mecz"
-          />
-        ) : game.scoringType === 'TTR_CALCULATOR' ? (
-          <MultiplayerTicketToRideMatchForm
-            game={game}
-            players={players}
-            variants={variants}
-            onSubmit={handleSubmitTtr}
             onSuccess={handleSuccess}
             submitLabel="Zapisz mecz"
           />

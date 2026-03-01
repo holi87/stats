@@ -10,6 +10,7 @@ const {
   listCustomScoringFields,
   listMultiplayerGameOptions,
   updateMultiplayerGameOption,
+  createMultiplayerGameOption,
 } = require('../services/multiplayer-games-service');
 
 const router = express.Router();
@@ -687,6 +688,81 @@ router.get('/multiplayer/games/:code/options', async (req, res, next) => {
 
     const options = await listMultiplayerGameOptions({ gameId: game.id, includeInactive });
     return res.json(options);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/multiplayer/games/:code/options', async (req, res, next) => {
+  try {
+    const { code } = req.params;
+    if (!code) {
+      return next(validationError([{ field: 'code', message: 'is required' }]));
+    }
+
+    const { displayName, optionCode, sortOrder } = req.body || {};
+    const details = [];
+
+    let normalizedDisplayName = '';
+    if (typeof displayName !== 'string') {
+      details.push({ field: 'displayName', message: 'must be a string' });
+    } else {
+      normalizedDisplayName = displayName.trim();
+      if (!normalizedDisplayName) {
+        details.push({ field: 'displayName', message: 'is required' });
+      } else if (normalizedDisplayName.length > 80) {
+        details.push({ field: 'displayName', message: 'max length is 80' });
+      }
+    }
+
+    let normalizedOptionCode = '';
+    if (optionCode !== undefined && optionCode !== null && optionCode !== '') {
+      if (typeof optionCode !== 'string') {
+        details.push({ field: 'optionCode', message: 'must be a string' });
+      } else {
+        normalizedOptionCode = slugifyCode(optionCode);
+      }
+    } else if (normalizedDisplayName) {
+      normalizedOptionCode = slugifyCode(normalizedDisplayName);
+    }
+
+    if (!normalizedOptionCode) {
+      details.push({ field: 'optionCode', message: 'must include letters or numbers' });
+    } else if (!/^[a-z0-9_]{2,64}$/.test(normalizedOptionCode)) {
+      details.push({
+        field: 'optionCode',
+        message: 'must contain 2-64 chars: lowercase letters, digits or underscore',
+      });
+    }
+
+    let normalizedSortOrder;
+    if (sortOrder !== undefined) {
+      if (!Number.isInteger(sortOrder)) {
+        details.push({ field: 'sortOrder', message: 'must be an integer' });
+      } else if (sortOrder < 0 || sortOrder > 9999) {
+        details.push({ field: 'sortOrder', message: 'must be between 0 and 9999' });
+      } else {
+        normalizedSortOrder = sortOrder;
+      }
+    }
+
+    if (details.length > 0) {
+      return next(validationError(details));
+    }
+
+    const game = await getMultiplayerGameByCode(code, { includeInactive: true });
+    if (!game) {
+      return next(notFound('Multiplayer game not found'));
+    }
+
+    const created = await createMultiplayerGameOption({
+      gameId: game.id,
+      code: normalizedOptionCode,
+      displayName: normalizedDisplayName,
+      sortOrder: normalizedSortOrder,
+    });
+
+    return res.status(201).json(created);
   } catch (error) {
     return next(error);
   }

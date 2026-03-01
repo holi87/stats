@@ -649,6 +649,48 @@ async function updateMultiplayerGameOption({
   return mapOptionRow(result.rows[0] || null);
 }
 
+async function createMultiplayerGameOption({ gameId, code, displayName, sortOrder }) {
+  const normalizedSortOrder =
+    Number.isInteger(sortOrder) && sortOrder >= 0 ? sortOrder : null;
+  const pool = getPool();
+  const result = await pool.query(
+    `WITH next_sort AS (
+       SELECT COALESCE(MAX(sort_order), 0) + 10 AS value
+       FROM multiplayer_game_options
+       WHERE game_id = $1
+     )
+     INSERT INTO multiplayer_game_options (
+       game_id,
+       code,
+       display_name,
+       sort_order,
+       is_active
+     )
+     VALUES (
+       $1,
+       $2,
+       $3,
+       COALESCE($4, (SELECT value FROM next_sort)),
+       true
+     )
+     ON CONFLICT (game_id, code) DO UPDATE
+     SET
+       display_name = EXCLUDED.display_name,
+       sort_order = COALESCE($4, multiplayer_game_options.sort_order),
+       is_active = true
+     RETURNING
+       id,
+       game_id,
+       code,
+       display_name,
+       sort_order,
+       is_active`,
+    [gameId, code, displayName, normalizedSortOrder]
+  );
+
+  return mapOptionRow(result.rows[0] || null);
+}
+
 async function countActiveOptionsForGame(gameId) {
   const pool = getPool();
   const result = await pool.query(
@@ -678,5 +720,6 @@ module.exports = {
   getMultiplayerGameOptionByIdForGame,
   getMultiplayerGameOptionByCodeForGame,
   updateMultiplayerGameOption,
+  createMultiplayerGameOption,
   countActiveOptionsForGame,
 };

@@ -569,10 +569,24 @@ async function getMultiplayerMatchById(id) {
   }
 
   if (matchRow.game_scoring_type === 'TTR_CALCULATOR') {
-    const rowsResult = await pool.query(
+    const playersResult = await pool.query(
       `SELECT
         mp.player_id,
         p.name AS player_name,
+        mp.total_points,
+        mp.place
+       FROM multiplayer_match_players mp
+       JOIN players p ON p.id = mp.player_id
+       WHERE mp.match_id = $1
+       ORDER BY mp.place ASC, mp.total_points DESC, mp.player_id ASC`,
+      [id]
+    );
+
+    const base = buildBaseMatchPayload(matchRow, playersResult.rows, matchOptions);
+
+    const rowsResult = await pool.query(
+      `SELECT
+        mp.player_id,
         mp.total_points,
         mp.place,
         ttr.tickets_points,
@@ -583,28 +597,49 @@ async function getMultiplayerMatchById(id) {
         v.code AS variant_code,
         v.name AS variant_name
        FROM multiplayer_match_players mp
-       JOIN players p ON p.id = mp.player_id
-       JOIN multiplayer_ticket_to_ride_player_details ttr ON ttr.match_player_id = mp.id
-       JOIN multiplayer_ticket_to_ride_matches mtm ON mtm.match_id = mp.match_id
-       JOIN ticket_to_ride_variants v ON v.id = mtm.variant_id
+       LEFT JOIN multiplayer_ticket_to_ride_player_details ttr ON ttr.match_player_id = mp.id
+       LEFT JOIN multiplayer_ticket_to_ride_matches mtm ON mtm.match_id = mp.match_id
+       LEFT JOIN ticket_to_ride_variants v ON v.id = mtm.variant_id
        WHERE mp.match_id = $1
        ORDER BY mp.place ASC, mp.total_points DESC, mp.player_id ASC`,
       [id]
     );
 
-    const base = buildBaseMatchPayload(matchRow, rowsResult.rows, matchOptions);
+    const hasLegacyDetails = rowsResult.rows.some(
+      (row) =>
+        row.tickets_points !== null ||
+        row.bonus_points !== null ||
+        row.trains_counts !== null ||
+        row.trains_points !== null ||
+        row.variant_id !== null
+    );
+
+    if (!hasLegacyDetails) {
+      return base;
+    }
+
     const variantRow = rowsResult.rows[0];
     const placeByPlayerId = new Map(base.players.map((player) => [player.playerId, player.place]));
     const playersDetails = sortPlayersByPlace(
-      rowsResult.rows.map((row) => ({
-        playerId: row.player_id,
-        ticketsPoints: row.tickets_points,
-        bonusPoints: row.bonus_points,
-        trainsCounts: row.trains_counts,
-        trainsPoints: row.trains_points,
-        totalPoints: row.total_points,
-        place: placeByPlayerId.get(row.player_id) ?? null,
-      }))
+      rowsResult.rows
+        .filter(
+          (row) =>
+            row.tickets_points !== null ||
+            row.bonus_points !== null ||
+            row.trains_counts !== null ||
+            row.trains_points !== null
+        )
+        .map((row) => ({
+          playerId: row.player_id,
+          ticketsPoints: row.tickets_points ?? 0,
+          bonusPoints: row.bonus_points ?? 0,
+          trainsCounts:
+            row.trains_counts ??
+            { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0, '8': 0, '9': 0 },
+          trainsPoints: row.trains_points ?? 0,
+          totalPoints: row.total_points,
+          place: placeByPlayerId.get(row.player_id) ?? null,
+        }))
     );
     return {
       ...base,

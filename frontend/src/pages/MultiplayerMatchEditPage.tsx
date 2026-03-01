@@ -5,13 +5,11 @@ import {
   useMultiplayerGameCustomFields,
   useMultiplayerGameOptions,
   usePlayers,
-  useTicketToRideVariants,
   useUpdateMultiplayerMatch,
 } from '../api/hooks';
 import { MultiplayerCustomCalculatorMatchForm } from '../components/MultiplayerCustomCalculatorMatchForm';
 import { MultiplayerManualMatchForm } from '../components/MultiplayerManualMatchForm';
 import { MultiplayerTerraformingMarsMatchForm } from '../components/MultiplayerTerraformingMarsMatchForm';
-import { MultiplayerTicketToRideMatchForm } from '../components/MultiplayerTicketToRideMatchForm';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
@@ -39,12 +37,6 @@ export function MultiplayerMatchEditPage() {
     refetch: refetchPlayers,
   } = usePlayers({ active: true });
   const {
-    data: variants = [],
-    isLoading: variantsLoading,
-    isError: variantsError,
-    refetch: refetchVariants,
-  } = useTicketToRideVariants({ enabled: match?.game?.scoringType === 'TTR_CALCULATOR' });
-  const {
     data: gameOptions = [],
     isLoading: gameOptionsLoading,
     isError: gameOptionsError,
@@ -52,6 +44,7 @@ export function MultiplayerMatchEditPage() {
   } = useMultiplayerGameOptions(gameCode, {
     enabled:
       match?.game?.scoringType === 'MANUAL_POINTS' ||
+      match?.game?.scoringType === 'TTR_CALCULATOR' ||
       match?.game?.scoringType === 'TM_CALCULATOR' ||
       match?.game?.scoringType === 'CUSTOM_CALCULATOR',
   });
@@ -73,8 +66,8 @@ export function MultiplayerMatchEditPage() {
   if (
     matchLoading ||
     playersLoading ||
-    (match?.game?.scoringType === 'TTR_CALCULATOR' && variantsLoading) ||
     ((match?.game?.scoringType === 'MANUAL_POINTS' ||
+      match?.game?.scoringType === 'TTR_CALCULATOR' ||
       match?.game?.scoringType === 'TM_CALCULATOR' ||
       match?.game?.scoringType === 'CUSTOM_CALCULATOR') &&
       gameOptionsLoading)
@@ -114,7 +107,6 @@ export function MultiplayerMatchEditPage() {
   if (
     matchError ||
     playersError ||
-    variantsError ||
     gameOptionsError ||
     customCalculatorFieldsError
   ) {
@@ -127,7 +119,6 @@ export function MultiplayerMatchEditPage() {
             onRetry={() => {
               refetchMatch();
               refetchPlayers();
-              refetchVariants();
               refetchGameOptions();
               refetchCustomCalculatorFields();
             }}
@@ -214,11 +205,6 @@ export function MultiplayerMatchEditPage() {
   };
 
   const initialPlayers = [...match.players].sort(sortByPlaceThenPoints);
-  const isTicketToRide =
-    match.game.scoringType === 'TTR_CALCULATOR' && 'ticketToRide' in match && match.ticketToRide;
-  const ticketToRidePlayers = isTicketToRide
-    ? [...match.ticketToRide.playersDetails].sort(sortByPlaceThenPoints)
-    : [];
   const isTerraformingMars =
     match.game.scoringType === 'TM_CALCULATOR' && 'terraformingMars' in match && match.terraformingMars;
   const terraformingPlayers = isTerraformingMars
@@ -247,29 +233,6 @@ export function MultiplayerMatchEditPage() {
       players: values.players.map((player) => ({
         playerId: player.playerId,
         totalPoints: player.totalPoints,
-      })),
-    });
-  };
-
-  const handleSubmitTtr = async (values: {
-    playedOn: string;
-    notes: string;
-    variantId: string;
-    players: { playerId: string; ticketsPoints: number; bonusPoints: number; trainsCounts: Record<string, number> }[];
-  }) => {
-    if (!id) {
-      return;
-    }
-    await updateMatch.mutateAsync({
-      id,
-      playedOn: values.playedOn,
-      notes: values.notes.trim() ? values.notes : null,
-      ticketToRide: { variantId: values.variantId },
-      players: values.players.map((player) => ({
-        playerId: player.playerId,
-        ticketsPoints: player.ticketsPoints,
-        bonusPoints: player.bonusPoints,
-        trainsCounts: player.trainsCounts,
       })),
     });
   };
@@ -338,6 +301,7 @@ export function MultiplayerMatchEditPage() {
 
   const useManualForm =
     match.game.scoringType === 'MANUAL_POINTS' ||
+    match.game.scoringType === 'TTR_CALCULATOR' ||
     (useSimpleTmMode && match.game.scoringType === 'TM_CALCULATOR');
 
   return (
@@ -362,28 +326,6 @@ export function MultiplayerMatchEditPage() {
               })),
             }}
             onSubmit={handleSubmitManual}
-            onSuccess={handleSuccess}
-            submitLabel="Zapisz zmiany"
-          />
-        ) : match.game.scoringType === 'TTR_CALCULATOR' ? (
-          <MultiplayerTicketToRideMatchForm
-            game={match.game}
-            players={players}
-            variants={variants}
-            initialValues={{
-              playedOn: match.playedOn,
-              notes: match.notes ?? '',
-              variantId: isTicketToRide ? match.ticketToRide.variant?.id ?? '' : '',
-              players: isTicketToRide
-                ? ticketToRidePlayers.map((detail) => ({
-                    playerId: detail.playerId,
-                    ticketsPoints: detail.ticketsPoints,
-                    bonusPoints: detail.bonusPoints,
-                    trainsCounts: detail.trainsCounts,
-                  }))
-                : [],
-            }}
-            onSubmit={handleSubmitTtr}
             onSuccess={handleSuccess}
             submitLabel="Zapisz zmiany"
           />

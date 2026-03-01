@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import type { ApiError } from '../api/ApiProvider';
 import {
+  useCreateMultiplayerGameOption,
   useMultiplayerGame,
   useMultiplayerGameOptions,
   useUpdateMultiplayerGame,
@@ -66,9 +67,12 @@ export function MultiplayerGameEditPage() {
 
   const updateGame = useUpdateMultiplayerGame();
   const updateOption = useUpdateMultiplayerGameOption();
+  const createOption = useCreateMultiplayerGameOption();
 
   const [draft, setDraft] = useState<EditDraft>(createEmptyDraft);
   const [optionNames, setOptionNames] = useState<Record<string, string>>({});
+  const [newOptionName, setNewOptionName] = useState('');
+  const [newOptionCode, setNewOptionCode] = useState('');
 
   useEffect(() => {
     if (!game) {
@@ -150,7 +154,7 @@ export function MultiplayerGameEditPage() {
     );
   }
 
-  const isBusy = updateGame.isPending || updateOption.isPending;
+  const isBusy = updateGame.isPending || updateOption.isPending || createOption.isPending;
 
   const saveGame = async () => {
     const displayName = draft.displayName.trim();
@@ -320,6 +324,37 @@ export function MultiplayerGameEditPage() {
     }
   };
 
+  const saveNewOption = async () => {
+    const displayName = newOptionName.trim();
+    const optionCode = newOptionCode.trim();
+
+    if (!displayName) {
+      notify('Nazwa dodatku nie może być pusta.', 'error');
+      return;
+    }
+    if (displayName.length > 80) {
+      notify('Nazwa dodatku może mieć maksymalnie 80 znaków.', 'error');
+      return;
+    }
+    if (optionCode.length > 0 && optionCode.length > 64) {
+      notify('Kod dodatku może mieć maksymalnie 64 znaki.', 'error');
+      return;
+    }
+
+    try {
+      const created = await createOption.mutateAsync({
+        code: game.code,
+        displayName,
+        optionCode: optionCode || undefined,
+      });
+      notify(`Dodano dodatek: ${created.displayName}.`, 'success');
+      setNewOptionName('');
+      setNewOptionCode('');
+    } catch (error) {
+      notify(getErrorMessage(error), 'error');
+    }
+  };
+
   return (
     <section>
       <PageHeader
@@ -449,6 +484,32 @@ export function MultiplayerGameEditPage() {
       </div>
 
       <div className="card table-card">
+        <div className="form-grid" style={{ marginBottom: '14px' }}>
+          <label className="form-field">
+            <span>Nowy dodatek</span>
+            <Input
+              value={newOptionName}
+              maxLength={80}
+              onChange={(event) => setNewOptionName(event.target.value)}
+              placeholder="Np. Polska, Europa 1912, Big Box"
+            />
+          </label>
+          <label className="form-field">
+            <span>Kod dodatku (opcjonalnie)</span>
+            <Input
+              value={newOptionCode}
+              maxLength={64}
+              onChange={(event) => setNewOptionCode(event.target.value)}
+              placeholder="Np. poland_1912"
+            />
+          </label>
+          <div className="form-field" style={{ alignSelf: 'end' }}>
+            <Button type="button" variant="primary" disabled={isBusy} onClick={() => void saveNewOption()}>
+              {createOption.isPending ? 'Dodawanie...' : 'Dodaj dodatek'}
+            </Button>
+          </div>
+        </div>
+
         <table className="table">
           <thead>
             <tr>

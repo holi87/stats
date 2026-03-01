@@ -109,3 +109,77 @@ test('POST /api/v1/multiplayer/matches creates TTR match with computed points', 
   assert.equal(ttrById.get(playerC.id).trainsPoints, 7);
   assert.equal(ttrById.get(playerC.id).totalPoints, 12);
 });
+
+test('POST /api/v1/multiplayer/matches accepts TTR final-points mode without calculator details', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is required to run multiplayer matches tests');
+  }
+
+  const { server } = await startServer({ port: 0 });
+
+  t.after(async () => {
+    await new Promise((resolve) => server.close(resolve));
+    await closePool();
+  });
+
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 3000;
+  const pool = getPool();
+  await resetDatabase(pool);
+
+  const playersResult = await pool.query(
+    `INSERT INTO players (name, is_active)
+     VALUES ('Ala', true), ('Bartek', true), ('Celina', true)
+     RETURNING id, name`
+  );
+  const ala = playersResult.rows.find((row) => row.name === 'Ala');
+  const bartek = playersResult.rows.find((row) => row.name === 'Bartek');
+  const celina = playersResult.rows.find((row) => row.name === 'Celina');
+
+  const gameResult = await pool.query(
+    `SELECT id, scoring_type AS "scoringType"
+     FROM multiplayer_games
+     WHERE code = 'ticket_to_ride'`
+  );
+  assert.equal(gameResult.rowCount, 1);
+  const game = gameResult.rows[0];
+  assert.equal(game.scoringType, 'TTR_CALCULATOR');
+
+  const optionResult = await pool.query(
+    `SELECT go.id
+     FROM multiplayer_game_options go
+     JOIN multiplayer_games g ON g.id = go.game_id
+     WHERE g.code = 'ticket_to_ride' AND go.code = 'poland'`
+  );
+  assert.equal(optionResult.rowCount, 1);
+  const optionId = optionResult.rows[0].id;
+
+  const response = await fetch(`http://localhost:${port}/api/v1/multiplayer/matches`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      gameId: game.id,
+      playedOn: '2026-03-01',
+      optionIds: [optionId],
+      notes: 'Import końcowych punktów',
+      players: [
+        { playerId: ala.id, totalPoints: 67 },
+        { playerId: bartek.id, totalPoints: 26 },
+        { playerId: celina.id, totalPoints: 8 },
+      ],
+    }),
+  });
+
+  assert.equal(response.status, 201);
+  const payload = await response.json();
+  assert.equal(payload.game.scoringType, 'TTR_CALCULATOR');
+  assert.equal(payload.players.length, 3);
+  assert.equal(payload.options.length, 1);
+  assert.equal(payload.options[0].id, optionId);
+  assert.ok(!('ticketToRide' in payload));
+
+  const ttrMatchRows = await pool.query(
+    'SELECT COUNT(*)::int AS total FROM multiplayer_ticket_to_ride_matches'
+  );
+  assert.equal(ttrMatchRows.rows[0].total, 0);
+});

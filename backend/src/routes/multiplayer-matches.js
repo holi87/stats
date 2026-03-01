@@ -152,6 +152,32 @@ function validateTrainsCounts(trainsCounts) {
   return null;
 }
 
+function validatePlayersTotalPoints(players) {
+  const details = [];
+
+  players.forEach((player, index) => {
+    if (player.totalPoints === undefined || player.totalPoints === null) {
+      details.push({ field: `players[${index}].totalPoints`, message: 'is required' });
+    } else if (typeof player.totalPoints !== 'number' || !Number.isInteger(player.totalPoints)) {
+      details.push({ field: `players[${index}].totalPoints`, message: 'must be an integer' });
+    }
+  });
+
+  return details;
+}
+
+function playerUsesLegacyTtrCalculatorFields(player) {
+  if (!player || typeof player !== 'object') {
+    return false;
+  }
+
+  return (
+    player.ticketsPoints !== undefined ||
+    player.bonusPoints !== undefined ||
+    player.trainsCounts !== undefined
+  );
+}
+
 function normalizeOptionIdsInput({ optionId, optionIds, details, optionField = 'optionId' }) {
   let normalizedSingleOptionId;
   if (optionId !== undefined) {
@@ -389,17 +415,11 @@ router.post('/multiplayer/matches', async (req, res, next) => {
     }
 
     if (game.scoringType === 'MANUAL_POINTS') {
-      const manualDetails = [];
-      normalizedPlayers.forEach((player, index) => {
-        if (player.totalPoints === undefined || player.totalPoints === null) {
-          manualDetails.push({ field: `players[${index}].totalPoints`, message: 'is required' });
-        } else if (
-          typeof player.totalPoints !== 'number' ||
-          !Number.isInteger(player.totalPoints)
-        ) {
-          manualDetails.push({ field: `players[${index}].totalPoints`, message: 'must be an integer' });
-        }
-      });
+      if (ticketToRide !== undefined) {
+        return next(validationError([{ field: 'ticketToRide', message: 'not applicable' }]));
+      }
+
+      const manualDetails = validatePlayersTotalPoints(normalizedPlayers);
 
       if (manualDetails.length > 0) {
         return next(validationError(manualDetails));
@@ -470,6 +490,37 @@ router.post('/multiplayer/matches', async (req, res, next) => {
     }
 
     if (game.scoringType === 'TTR_CALCULATOR') {
+      const hasLegacyPayload =
+        ticketToRide !== undefined ||
+        normalizedPlayers.some((player) => playerUsesLegacyTtrCalculatorFields(player));
+
+      if (!hasLegacyPayload) {
+        const manualDetails = validatePlayersTotalPoints(normalizedPlayers);
+        if (manualDetails.length > 0) {
+          return next(validationError(manualDetails));
+        }
+
+        const options = await resolveOptionsForGame({
+          game,
+          optionIds: normalizedOptionIds,
+          optionField: normalizedOptionIds === undefined ? 'optionId' : 'optionIds',
+          requireWhenAvailable: true,
+        });
+
+        const payload = await createMultiplayerMatchManual({
+          game,
+          options,
+          playedOn,
+          notes,
+          players: normalizedPlayers.map((player) => ({
+            playerId: player.playerId,
+            totalPoints: player.totalPoints,
+          })),
+        });
+
+        return res.status(201).json(payload);
+      }
+
       const ttrDetails = [];
       if (!ticketToRide || typeof ticketToRide !== 'object') {
         ttrDetails.push({ field: 'ticketToRide', message: 'is required' });
@@ -625,17 +676,7 @@ router.post('/multiplayer/matches', async (req, res, next) => {
         return next(validationError([{ field: 'ticketToRide', message: 'not applicable' }]));
       }
 
-      const manualDetails = [];
-      normalizedPlayers.forEach((player, index) => {
-        if (player.totalPoints === undefined || player.totalPoints === null) {
-          manualDetails.push({ field: `players[${index}].totalPoints`, message: 'is required' });
-        } else if (
-          typeof player.totalPoints !== 'number' ||
-          !Number.isInteger(player.totalPoints)
-        ) {
-          manualDetails.push({ field: `players[${index}].totalPoints`, message: 'must be an integer' });
-        }
-      });
+      const manualDetails = validatePlayersTotalPoints(normalizedPlayers);
 
       if (manualDetails.length > 0) {
         return next(validationError(manualDetails));
@@ -767,21 +808,12 @@ router.patch('/multiplayer/matches/:id', async (req, res, next) => {
     }
 
     if (game.scoringType === 'MANUAL_POINTS') {
+      if (ticketToRide !== undefined) {
+        return next(validationError([{ field: 'ticketToRide', message: 'not applicable' }]));
+      }
+
       if (normalizedPlayers) {
-        const manualDetails = [];
-        normalizedPlayers.forEach((player, index) => {
-          if (player.totalPoints === undefined || player.totalPoints === null) {
-            manualDetails.push({ field: `players[${index}].totalPoints`, message: 'is required' });
-          } else if (
-            typeof player.totalPoints !== 'number' ||
-            !Number.isInteger(player.totalPoints)
-          ) {
-            manualDetails.push({
-              field: `players[${index}].totalPoints`,
-              message: 'must be an integer',
-            });
-          }
-        });
+        const manualDetails = validatePlayersTotalPoints(normalizedPlayers);
 
         if (manualDetails.length > 0) {
           return next(validationError(manualDetails));
@@ -861,6 +893,44 @@ router.patch('/multiplayer/matches/:id', async (req, res, next) => {
     }
 
     if (game.scoringType === 'TTR_CALCULATOR') {
+      const hasLegacyPayload =
+        ticketToRide !== undefined ||
+        (normalizedPlayers ? normalizedPlayers.some((player) => playerUsesLegacyTtrCalculatorFields(player)) : false);
+
+      if (!hasLegacyPayload) {
+        if (normalizedPlayers) {
+          const manualDetails = validatePlayersTotalPoints(normalizedPlayers);
+          if (manualDetails.length > 0) {
+            return next(validationError(manualDetails));
+          }
+        }
+
+        const options =
+          normalizedOptionIds !== undefined
+            ? await resolveOptionsForGame({
+                game,
+                optionIds: normalizedOptionIds,
+                optionField: normalizedOptionIds.length <= 1 ? 'optionId' : 'optionIds',
+                requireWhenAvailable: false,
+              })
+            : undefined;
+
+        const payload = await updateMultiplayerMatchManual({
+          match: { id: match.id, gameId: game.id },
+          playedOn,
+          notes,
+          players: normalizedPlayers
+            ? normalizedPlayers.map((player) => ({
+                playerId: player.playerId,
+                totalPoints: player.totalPoints,
+              }))
+            : undefined,
+          options,
+          preserveLinkedPlayerDetails: true,
+        });
+        return res.json(payload);
+      }
+
       let variant = null;
       let options = undefined;
       if (normalizedPlayers || ticketToRide !== undefined || normalizedOptionIds !== undefined) {
@@ -1048,20 +1118,7 @@ router.patch('/multiplayer/matches/:id', async (req, res, next) => {
       }
 
       if (normalizedPlayers) {
-        const manualDetails = [];
-        normalizedPlayers.forEach((player, index) => {
-          if (player.totalPoints === undefined || player.totalPoints === null) {
-            manualDetails.push({ field: `players[${index}].totalPoints`, message: 'is required' });
-          } else if (
-            typeof player.totalPoints !== 'number' ||
-            !Number.isInteger(player.totalPoints)
-          ) {
-            manualDetails.push({
-              field: `players[${index}].totalPoints`,
-              message: 'must be an integer',
-            });
-          }
-        });
+        const manualDetails = validatePlayersTotalPoints(normalizedPlayers);
 
         if (manualDetails.length > 0) {
           return next(validationError(manualDetails));

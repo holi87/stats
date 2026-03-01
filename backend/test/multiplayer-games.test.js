@@ -165,6 +165,70 @@ test('GET /api/v1/multiplayer/games/:code/options returns active game options', 
   assert.ok(options.every((option) => option.isActive === true));
 });
 
+test('POST /api/v1/multiplayer/games/:code/options creates and reactivates option', async (t) => {
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is required to run multiplayer games tests');
+  }
+
+  const { server } = await startServer({ port: 0 });
+
+  t.after(async () => {
+    await new Promise((resolve) => server.close(resolve));
+    await closePool();
+  });
+
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 3000;
+  const gameCode = uniqueCode('opts');
+  const pool = getPool();
+
+  await pool.query(
+    `INSERT INTO multiplayer_games (code, display_name, scoring_type, min_players, max_players, is_active)
+     VALUES ($1, $2, 'MANUAL_POINTS', 2, 6, true)`,
+    [gameCode, `Options ${gameCode}`]
+  );
+
+  const createResponse = await fetch(
+    `http://localhost:${port}/api/v1/multiplayer/games/${gameCode}/options`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        displayName: 'Polska 1912',
+      }),
+    }
+  );
+  assert.equal(createResponse.status, 201);
+  const created = await createResponse.json();
+  assert.equal(created.displayName, 'Polska 1912');
+  assert.equal(created.isActive, true);
+  assert.ok(created.code);
+
+  await pool.query(
+    `UPDATE multiplayer_game_options
+     SET is_active = false
+     WHERE id = $1`,
+    [created.id]
+  );
+
+  const reactivateResponse = await fetch(
+    `http://localhost:${port}/api/v1/multiplayer/games/${gameCode}/options`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        displayName: 'Polska',
+        optionCode: created.code,
+      }),
+    }
+  );
+  assert.equal(reactivateResponse.status, 201);
+  const reactivated = await reactivateResponse.json();
+  assert.equal(reactivated.id, created.id);
+  assert.equal(reactivated.displayName, 'Polska');
+  assert.equal(reactivated.isActive, true);
+});
+
 test('POST /api/v1/multiplayer/games creates manual multiplayer game', async (t) => {
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL is required to run multiplayer games tests');

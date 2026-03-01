@@ -8,6 +8,7 @@ import type {
   MultiplayerGameDeleteResponse,
   MultiplayerGameListResponse,
   MultiplayerGameOption,
+  MultiplayerGameOptionCreateInput,
   MultiplayerGameOptionListResponse,
   MultiplayerGameOptionUpdateInput,
   MultiplayerGameUpdateInput,
@@ -406,6 +407,30 @@ export function useUpdateMultiplayerGameOption() {
           body: JSON.stringify(payload),
         }
       ),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.multiplayerGameOptions(variables.code),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.multiplayerGame(variables.code),
+      });
+    },
+  });
+}
+
+export function useCreateMultiplayerGameOption() {
+  const { request } = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      code,
+      ...payload
+    }: { code: string } & MultiplayerGameOptionCreateInput) =>
+      request<MultiplayerGameOption>(`/api/v1/multiplayer/games/${code}/options`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.multiplayerGameOptions(variables.code),

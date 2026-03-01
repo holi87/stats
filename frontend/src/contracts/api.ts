@@ -437,6 +437,12 @@ export type MultiplayerGameOptionUpdateInput = {
   displayName?: string;
 };
 
+export type MultiplayerGameOptionCreateInput = {
+  displayName: string;
+  optionCode?: string;
+  sortOrder?: number;
+};
+
 export type MultiplayerGameDeleteResponse = {
   code: string;
   deletedMatches: number;
