@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useMultiplayerGames } from '../api/hooks';
 import { isQuickMenuGameVisible } from '../utils/multiplayerVisibility';
+import { ThemeToggle } from './ThemeToggle';
 
 const primaryLinks = [
   { to: '/games/overview', label: 'Gry' },
@@ -32,6 +33,7 @@ export function TopNav() {
               {link.label}
             </NavLink>
           ))}
+          <ThemeToggle />
         </nav>
       </div>
 
