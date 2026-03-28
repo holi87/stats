@@ -20,7 +20,7 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-    command: sh -c "if [ ! -d node_modules ]; then npm install; fi; npm start"
+    command: sh -c "npm install && npm start"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       DB_BOOTSTRAP: ${DB_BOOTSTRAP:-false}
@@ -38,7 +38,7 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: sh -c "if [ ! -d node_modules ]; then npm install; fi; npm run build && npm run preview -- --host 0.0.0.0 --port ${FRONTEND_PORT:-5173}"
+    command: sh -c "npm install && npm run build && npm run preview -- --host 0.0.0.0 --port ${FRONTEND_PORT:-5173}"
     environment:
       PORT: ${FRONTEND_PORT:-5173}
       VITE_API_BASE_URL: "${VITE_API_BASE_URL:-https://stats.sh.info.pl}"
