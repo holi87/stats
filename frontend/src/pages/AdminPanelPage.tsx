@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom';
+import { useApi } from '../api/ApiProvider';
 import { PageHeader } from '../components/PageHeader';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 
 const adminActions = [
   {
@@ -23,12 +26,34 @@ const adminActions = [
 ];
 
 export function AdminPanelPage() {
+  const { adminToken, setAdminToken } = useApi();
+
   return (
     <section>
       <PageHeader
         title="Administracja"
         description="Miejsce na operacje administracyjne: gracze, konfiguracja gier i inne akcje techniczne."
       />
+
+      <div className="card admin-token-card">
+        <div>
+          <h3>Token administracyjny</h3>
+          <p className="multiplayer-game-meta">
+            Token jest dolaczany do operacji zapisu jako naglowek X-Admin-Token.
+          </p>
+        </div>
+        <div className="admin-token-controls">
+          <Input
+            type="password"
+            value={adminToken}
+            onChange={(event) => setAdminToken(event.target.value)}
+            placeholder="Wklej token, jesli backend go wymaga"
+          />
+          <Button type="button" variant="secondary" onClick={() => setAdminToken('')}>
+            Wyczyść
+          </Button>
+        </div>
+      </div>
 
       <div className="admin-grid">
         {adminActions.map((action) => (

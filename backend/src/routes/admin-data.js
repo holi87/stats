@@ -209,6 +209,7 @@ router.post('/admin/data/import', async (req, res, next) => {
       return res.status(200).json({
         dryRun: true,
         summary: prepared.summary,
+        diff: prepared.diff,
         warnings: prepared.warnings,
         confirmationRequired: isProduction(),
         confirmationToken: isProduction() ? PROD_IMPORT_CONFIRMATION : null,
@@ -219,6 +220,7 @@ router.post('/admin/data/import', async (req, res, next) => {
     return res.status(201).json({
       dryRun: false,
       summary: prepared.summary,
+      diff: prepared.diff,
       warnings: prepared.warnings,
       appliedAt: applyResult.appliedAt,
       confirmationRequired: false,

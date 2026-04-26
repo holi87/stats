@@ -32,7 +32,8 @@ const MULTIPLAYER_GAMES = [
     displayName: 'Uno',
     scoringType: 'MANUAL_POINTS',
     minPlayers: 2,
-    maxPlayers: 5,
+    maxPlayers: 10,
+    visibleInOneVsOne: true,
   },
   {
     code: 'rummikub',
@@ -40,6 +41,7 @@ const MULTIPLAYER_GAMES = [
     scoringType: 'MANUAL_POINTS',
     minPlayers: 2,
     maxPlayers: 5,
+    visibleInOneVsOne: true,
   },
   {
     code: 'dobble',
@@ -80,14 +82,27 @@ async function seedTicketToRideVariants(client) {
 
 async function seedMultiplayerGames(client) {
   const query =
-    `INSERT INTO multiplayer_games (code, display_name, scoring_type, min_players, max_players)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO multiplayer_games (
+       code,
+       display_name,
+       scoring_type,
+       min_players,
+       max_players,
+       visible_in_one_vs_one,
+       visible_in_multiplayer,
+       is_active,
+       options_exclusive
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, true, true)
      ON CONFLICT (code) DO UPDATE
      SET
        display_name = EXCLUDED.display_name,
        scoring_type = EXCLUDED.scoring_type,
        min_players = EXCLUDED.min_players,
-       max_players = EXCLUDED.max_players
+       max_players = EXCLUDED.max_players,
+       visible_in_one_vs_one = EXCLUDED.visible_in_one_vs_one,
+       visible_in_multiplayer = EXCLUDED.visible_in_multiplayer,
+       is_active = EXCLUDED.is_active
      WHERE
        multiplayer_games.display_name IS NULL OR multiplayer_games.display_name = ''
        OR multiplayer_games.scoring_type IS NULL OR multiplayer_games.scoring_type = ''
@@ -95,7 +110,10 @@ async function seedMultiplayerGames(client) {
        OR multiplayer_games.display_name <> EXCLUDED.display_name
        OR multiplayer_games.scoring_type <> EXCLUDED.scoring_type
        OR multiplayer_games.min_players <> EXCLUDED.min_players
-       OR multiplayer_games.max_players <> EXCLUDED.max_players`;
+       OR multiplayer_games.max_players <> EXCLUDED.max_players
+       OR multiplayer_games.visible_in_one_vs_one IS DISTINCT FROM EXCLUDED.visible_in_one_vs_one
+       OR multiplayer_games.visible_in_multiplayer IS DISTINCT FROM EXCLUDED.visible_in_multiplayer
+       OR multiplayer_games.is_active IS DISTINCT FROM EXCLUDED.is_active`;
 
   for (const game of MULTIPLAYER_GAMES) {
     // Idempotent insert based on unique code
@@ -106,6 +124,8 @@ async function seedMultiplayerGames(client) {
       game.scoringType,
       game.minPlayers,
       game.maxPlayers,
+      game.visibleInOneVsOne === true,
+      game.visibleInMultiplayer !== false,
     ]);
   }
 

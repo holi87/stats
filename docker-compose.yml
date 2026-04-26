@@ -20,15 +20,15 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-    command: sh -c "if [ ! -d node_modules ]; then npm install; fi; npm start"
+    command: sh -c "if [ ! -d node_modules ]; then npm ci; fi; npm start"
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      DB_BOOTSTRAP: ${DB_BOOTSTRAP:-false}
+      NODE_ENV: ${NODE_ENV:-development}
+      DB_BOOTSTRAP: ${DB_BOOTSTRAP:-true}
       PORT: ${BACKEND_PORT:-3002}
-      CORS_ORIGIN: "${CORS_ORIGIN:-https://stats.sh.info.pl}"
+      CORS_ORIGIN: "${CORS_ORIGIN:-http://localhost:8501,http://127.0.0.1:8501,http://localhost:5173,http://127.0.0.1:5173}"
       DATABASE_URL: "${DATABASE_URL:-postgresql://${POSTGRES_USER:-gamestats}:${POSTGRES_PASSWORD:-gamestats}@postgres:5432/${POSTGRES_DB:-gamestats}}"
     ports:
-      - "${BACKEND_PORT:-3002}:${BACKEND_PORT:-3002}" # na czas testów może zostać
+      - "${BACKEND_PUBLIC_PORT:-8500}:${BACKEND_PORT:-3002}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -47,12 +47,12 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: sh -c "if [ ! -d node_modules ]; then npm install; fi; npm run build && npm run preview -- --host 0.0.0.0 --port ${FRONTEND_PORT:-5173}"
+    command: sh -c "if [ ! -d node_modules ]; then npm ci; fi; npm run build && npm run preview -- --host 0.0.0.0 --port ${FRONTEND_PORT:-5173}"
     environment:
       PORT: ${FRONTEND_PORT:-5173}
-      VITE_API_BASE_URL: "${VITE_API_BASE_URL:-https://stats.sh.info.pl}"
+      VITE_API_BASE_URL: "${VITE_API_BASE_URL:-http://localhost:8500}"
     ports:
-      - "${FRONTEND_PORT:-5173}:${FRONTEND_PORT:-5173}" # na czas testów może zostać
+      - "${FRONTEND_PUBLIC_PORT:-8501}:${FRONTEND_PORT:-5173}"
     depends_on:
       - backend
     networks:

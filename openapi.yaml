@@ -7,6 +7,12 @@ servers:
   - url: /api/v1
 
 components:
+  securitySchemes:
+    AdminToken:
+      type: apiKey
+      in: header
+      name: X-Admin-Token
+
   schemas:
     Uuid:
       type: string
@@ -34,7 +40,7 @@ components:
       properties:
         code:
           type: string
-          enum: [VALIDATION_ERROR, NOT_FOUND, CONFLICT, INTERNAL_ERROR]
+          enum: [VALIDATION_ERROR, NOT_FOUND, CONFLICT, FORBIDDEN, TOO_MANY_REQUESTS, INTERNAL_ERROR]
         message:
           type: string
         details:
@@ -50,7 +56,7 @@ components:
 
     MultiplayerGame:
       type: object
-      required: [id, code, displayName, scoringType, minPlayers, maxPlayers, isActive, inOneVsOne, inMultiplayer, optionsCount, requiresOption, customFieldsCount]
+      required: [id, code, displayName, scoringType, minPlayers, maxPlayers, isActive, showInQuickMenu, optionsCount, requiresOption, optionsExclusive, customFieldsCount]
       properties:
         id:
           $ref: '#/components/schemas/Uuid'
@@ -60,6 +66,12 @@ components:
         displayName:
           type: string
           example: "Terraformacja Marsa"
+        calculatorButtonLabel:
+          type: string
+          nullable: true
+        calculatorUrl:
+          type: string
+          nullable: true
         scoringType:
           type: string
           enum: [MANUAL_POINTS, TTR_CALCULATOR, TM_CALCULATOR, CUSTOM_CALCULATOR]
@@ -69,20 +81,20 @@ components:
           type: integer
         isActive:
           type: boolean
-        inOneVsOne:
-          type: boolean
-        inMultiplayer:
+        showInQuickMenu:
           type: boolean
         optionsCount:
           type: integer
         requiresOption:
+          type: boolean
+        optionsExclusive:
           type: boolean
         customFieldsCount:
           type: integer
 
     MultiplayerGameListItem:
       type: object
-      required: [id, code, displayName, scoringType, minPlayers, maxPlayers, isActive, inOneVsOne, inMultiplayer, optionsCount, requiresOption, customFieldsCount]
+      required: [id, code, displayName, scoringType, minPlayers, maxPlayers, isActive, showInQuickMenu, optionsCount, requiresOption, optionsExclusive, customFieldsCount]
       properties:
         id:
           $ref: '#/components/schemas/Uuid'
@@ -90,6 +102,12 @@ components:
           type: string
         displayName:
           type: string
+        calculatorButtonLabel:
+          type: string
+          nullable: true
+        calculatorUrl:
+          type: string
+          nullable: true
         scoringType:
           type: string
           enum: [MANUAL_POINTS, TTR_CALCULATOR, TM_CALCULATOR, CUSTOM_CALCULATOR]
@@ -99,13 +117,13 @@ components:
           type: integer
         isActive:
           type: boolean
-        inOneVsOne:
-          type: boolean
-        inMultiplayer:
+        showInQuickMenu:
           type: boolean
         optionsCount:
           type: integer
         requiresOption:
+          type: boolean
+        optionsExclusive:
           type: boolean
         customFieldsCount:
           type: integer
@@ -123,6 +141,14 @@ components:
           type: string
         displayName:
           type: string
+        calculatorButtonLabel:
+          type: string
+          nullable: true
+          maxLength: 40
+        calculatorUrl:
+          type: string
+          nullable: true
+          maxLength: 400
         scoringType:
           type: string
           enum: [MANUAL_POINTS, CUSTOM_CALCULATOR]
@@ -130,9 +156,11 @@ components:
           type: integer
         maxPlayers:
           type: integer
-        inOneVsOne:
+        showInQuickMenu:
           type: boolean
-        inMultiplayer:
+        isActive:
+          type: boolean
+        optionsExclusive:
           type: boolean
         customCalculator:
           type: object
@@ -161,16 +189,24 @@ components:
           maxLength: 80
         minPlayers:
           type: integer
-          minimum: 2
-          maximum: 5
+          minimum: 1
         maxPlayers:
           type: integer
-          minimum: 2
-          maximum: 5
-        inOneVsOne:
+          minimum: 1
+        showInQuickMenu:
           type: boolean
-        inMultiplayer:
+        isActive:
           type: boolean
+        optionsExclusive:
+          type: boolean
+        calculatorButtonLabel:
+          type: string
+          nullable: true
+          maxLength: 40
+        calculatorUrl:
+          type: string
+          nullable: true
+          maxLength: 400
 
     MultiplayerGameDeleteResponse:
       type: object
@@ -520,7 +556,7 @@ components:
 
     MultiplayerMatchTmCreate:
       type: object
-      description: "scoringType jest opcjonalne i służy jedynie do rozróżnienia schematów (serwer ignoruje to pole)."
+      description: "scoringType jest opcjonalne. Gdy FEATURE_SIMPLE_TM_MODE=true gracze podaja totalPoints; legacy kalkulator uzywa pol szczegolowych."
       required: [gameId, playedOn, players]
       properties:
         scoringType:
@@ -545,6 +581,8 @@ components:
             properties:
               playerId:
                 $ref: '#/components/schemas/Uuid'
+              totalPoints:
+                type: integer
               titlesCount:
                 type: integer
                 minimum: 0
@@ -678,7 +716,7 @@ components:
 
     MultiplayerMatchTmPatch:
       type: object
-      description: "Co najmniej jedno z: playedOn, notes, players. scoringType opcjonalne."
+      description: "Co najmniej jedno z: playedOn, notes, players. Gdy FEATURE_SIMPLE_TM_MODE=true gracze podaja totalPoints; legacy kalkulator uzywa pol szczegolowych."
       properties:
         scoringType:
           type: string
@@ -699,6 +737,8 @@ components:
             properties:
               playerId:
                 $ref: '#/components/schemas/Uuid'
+              totalPoints:
+                type: integer
               titlesCount:
                 type: integer
                 minimum: 0
@@ -801,6 +841,116 @@ components:
           type: integer
         isActive:
           type: boolean
+
+    MultiplayerGameOptionCreateInput:
+      type: object
+      required: [displayName]
+      properties:
+        displayName:
+          type: string
+          maxLength: 80
+        optionCode:
+          type: string
+          maxLength: 64
+        sortOrder:
+          type: integer
+
+    MultiplayerGameOptionPatchInput:
+      type: object
+      minProperties: 1
+      properties:
+        displayName:
+          type: string
+          maxLength: 80
+
+    AdminDataImportRequest:
+      type: object
+      required: [payload]
+      properties:
+        dryRun:
+          type: boolean
+          default: true
+        payload:
+          type: object
+          additionalProperties: true
+        confirmation:
+          type: string
+
+    AdminDataImportResponse:
+      type: object
+      required: [dryRun, summary, warnings]
+      properties:
+        dryRun:
+          type: boolean
+        summary:
+          type: object
+          required: [received, toInsert, toUpdate]
+          properties:
+            received:
+              type: object
+              additionalProperties:
+                type: integer
+            toInsert:
+              type: object
+              additionalProperties:
+                type: integer
+            toUpdate:
+              type: object
+              additionalProperties:
+                type: integer
+        diff:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              required: [key, operation]
+              properties:
+                key:
+                  type: string
+                operation:
+                  type: string
+                  enum: [insert, update]
+        warnings:
+          type: array
+          items:
+            type: string
+        appliedAt:
+          $ref: '#/components/schemas/DateTime'
+        confirmationRequired:
+          type: boolean
+        confirmationToken:
+          type: string
+          nullable: true
+
+    AdminDataSnapshot:
+      type: object
+      required: [version, exportedAt, data]
+      properties:
+        version:
+          type: integer
+        exportedAt:
+          $ref: '#/components/schemas/DateTime'
+        meta:
+          type: object
+          properties:
+            schemaVersion:
+              type: integer
+            collections:
+              type: object
+              additionalProperties:
+                type: object
+                required: [count]
+                properties:
+                  count:
+                    type: integer
+        data:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              additionalProperties: true
 
     MultiplayerPlayerStatsByOption:
       type: object
@@ -1253,6 +1403,18 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    ForbiddenError:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequestsError:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     InternalError:
       description: Internal error
       content:
@@ -1273,6 +1435,42 @@ paths:
                 $ref: '#/components/schemas/HealthResponse'
         '500':
           $ref: '#/components/responses/InternalError'
+
+  /ready:
+    get:
+      summary: Readiness check with database and schema validation
+      responses:
+        '200':
+          description: Ready
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, checks]
+                properties:
+                  status:
+                    type: string
+                    enum: [ready]
+                  checks:
+                    type: object
+                    additionalProperties: true
+        '503':
+          description: Not ready
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, checks]
+                properties:
+                  status:
+                    type: string
+                    enum: [not_ready]
+                  checks:
+                    type: object
+                    additionalProperties: true
+                  error:
+                    type: object
+                    additionalProperties: true
 
   /games:
     get:
@@ -1818,6 +2016,62 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /admin/data/export:
+    get:
+      summary: Export full admin data snapshot
+      security:
+        - AdminToken: []
+      responses:
+        '200':
+          description: JSON snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDataSnapshot'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /admin/data/import:
+    post:
+      summary: Validate or apply admin data import
+      security:
+        - AdminToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminDataImportRequest'
+      responses:
+        '200':
+          description: Dry-run result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDataImportResponse'
+        '201':
+          description: Import applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDataImportResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '429':
+          $ref: '#/components/responses/TooManyRequestsError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /multiplayer/games:
     get:
       summary: List multiplayer games
@@ -1843,8 +2097,8 @@ paths:
                       minPlayers: 2
                       maxPlayers: 5
                       isActive: true
-                      inOneVsOne: false
-                      inMultiplayer: true
+                      showInQuickMenu: true
+                      optionsExclusive: true
                       optionsCount: 6
                       requiresOption: true
                       customFieldsCount: 0
@@ -1904,8 +2158,8 @@ paths:
                     minPlayers: 2
                     maxPlayers: 5
                     isActive: true
-                    inOneVsOne: false
-                    inMultiplayer: true
+                    showInQuickMenu: true
+                    optionsExclusive: true
                     optionsCount: 10
                     requiresOption: true
                     customFieldsCount: 0
@@ -1968,13 +2222,17 @@ paths:
 
   /multiplayer/games/{code}/options:
     get:
-      summary: List active options for multiplayer game
+      summary: List options for multiplayer game
       parameters:
         - in: path
           name: code
           required: true
           schema:
             type: string
+        - in: query
+          name: includeInactive
+          schema:
+            type: boolean
       responses:
         '200':
           description: OK
@@ -1986,6 +2244,75 @@ paths:
                   $ref: '#/components/schemas/MultiplayerGameOption'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      summary: Create or reactivate multiplayer game option
+      security:
+        - AdminToken: []
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MultiplayerGameOptionCreateInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiplayerGameOption'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /multiplayer/games/{code}/options/{optionId}:
+    patch:
+      summary: Update multiplayer game option
+      security:
+        - AdminToken: []
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: optionId
+          required: true
+          schema:
+            $ref: '#/components/schemas/Uuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MultiplayerGameOptionPatchInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiplayerGameOption'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/NotFoundError'
         '500':

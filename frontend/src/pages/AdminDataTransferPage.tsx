@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { ApiError } from '../api/ApiProvider';
+import { useApi, type ApiError } from '../api/ApiProvider';
 import {
   useAdminDataExport,
   useAdminDataImport,
@@ -66,12 +66,27 @@ function renderSummaryRows(summary: AdminDataImportResponse['summary']) {
   }));
 }
 
+function renderDiffRows(diff: AdminDataImportResponse['diff'] | undefined) {
+  if (!diff) {
+    return [];
+  }
+  return Object.entries(diff)
+    .flatMap(([collection, rows]) =>
+      rows.map((row) => ({
+        collection,
+        key: row.key,
+        operation: row.operation,
+      }))
+    )
+    .slice(0, 100);
+}
+
 export function AdminDataTransferPage() {
   const { notify } = useToast();
+  const { adminToken, setAdminToken } = useApi();
   const exportMutation = useAdminDataExport();
   const importMutation = useAdminDataImport();
 
-  const [adminToken, setAdminToken] = useState('');
   const [selectedFileName, setSelectedFileName] = useState('');
   const [selectedFileSize, setSelectedFileSize] = useState(0);
   const [payload, setPayload] = useState<AdminDataSnapshot | null>(null);
@@ -87,6 +102,7 @@ export function AdminDataTransferPage() {
     }
     return renderSummaryRows(importResult.summary);
   }, [importResult]);
+  const diffRows = useMemo(() => renderDiffRows(importResult?.diff), [importResult]);
 
   const handleExport = async () => {
     setLocalError('');
@@ -299,6 +315,31 @@ export function AdminDataTransferPage() {
                   ))}
                 </tbody>
               </table>
+
+              {diffRows.length > 0 ? (
+                <>
+                  <h3>Podgląd zmian</h3>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Kolekcja</th>
+                        <th>Operacja</th>
+                        <th>Klucz</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {diffRows.map((row) => (
+                        <tr key={`${row.collection}-${row.operation}-${row.key}`}>
+                          <td>{row.collection}</td>
+                          <td>{row.operation === 'insert' ? 'dodanie' : 'aktualizacja'}</td>
+                          <td>{row.key}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="muted">Pokazano maksymalnie 100 pierwszych zmian.</p>
+                </>
+              ) : null}
 
               <p className="muted">
                 Tryb: <strong>{importResult.dryRun ? 'dry-run (bez zapisu)' : 'zapis do bazy'}</strong>

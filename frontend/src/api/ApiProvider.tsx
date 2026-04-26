@@ -17,28 +17,55 @@ type ApiContextValue = {
   request: <T>(path: string, options?: RequestInit) => Promise<T>;
   loading: boolean;
   error: ApiError | null;
+  adminToken: string;
+  setAdminToken: (token: string) => void;
   clearError: () => void;
 };
 
 const ApiContext = createContext<ApiContextValue | null>(null);
+const ADMIN_TOKEN_STORAGE_KEY = 'game-stats-admin-token';
+
+function readStoredAdminToken() {
+  try {
+    return window.localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) ?? '';
+  } catch (_) {
+    return '';
+  }
+}
 
 export function ApiProvider({ children }: { children: React.ReactNode }) {
   const [loadingCount, setLoadingCount] = useState(0);
   const [error, setError] = useState<ApiError | null>(null);
+  const [adminToken, setAdminTokenState] = useState(readStoredAdminToken);
 
   const startLoading = () => setLoadingCount((count) => count + 1);
   const stopLoading = () => setLoadingCount((count) => Math.max(0, count - 1));
 
   const clearError = () => setError(null);
+  const setAdminToken = useCallback((token: string) => {
+    setAdminTokenState(token);
+    try {
+      const trimmed = token.trim();
+      if (trimmed) {
+        window.localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, trimmed);
+      } else {
+        window.localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+      }
+    } catch (_) {
+      // Storage can be unavailable in private contexts; request headers still use state.
+    }
+  }, []);
 
   const request = useCallback(
     async <T,>(path: string, options?: RequestInit): Promise<T> => {
     startLoading();
     try {
       const baseUrl = getApiBaseUrl();
+      const storedAdminToken = adminToken.trim();
       const response = await fetch(`${baseUrl}${path}`, {
         headers: {
           'Content-Type': 'application/json',
+          ...(storedAdminToken ? { 'X-Admin-Token': storedAdminToken } : {}),
           ...(options?.headers ?? {}),
         },
         ...options,
@@ -81,11 +108,11 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
     } finally {
       stopLoading();
     }
-  }, []);
+  }, [adminToken]);
 
   const value = useMemo(
-    () => ({ request, loading: loadingCount > 0, error, clearError }),
-    [request, loadingCount, error]
+    () => ({ request, loading: loadingCount > 0, error, adminToken, setAdminToken, clearError }),
+    [request, loadingCount, error, adminToken, setAdminToken]
   );
 
   return <ApiContext.Provider value={value}>{children}</ApiContext.Provider>;

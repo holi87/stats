@@ -28,3 +28,14 @@ The esbuild development server sets `Access-Control-Allow-Origin: *` header to a
 2. Use production builds for deployment
 3. Keep the development server on localhost only
 4. Regularly review npm audit reports for production dependencies
+
+## Admin Token
+
+Write operations (`POST`, `PATCH`, `PUT`, `DELETE`) are protected by the
+`X-Admin-Token` header whenever `ADMIN_TOKEN` is configured. In production,
+write access is refused if `ADMIN_TOKEN` is empty, so deployments must set a
+strong token before exposing the API.
+
+Frontend operators can save the token in the Admin panel. It is stored in local
+browser storage and sent with write requests. Treat this as a lightweight
+self-hosted admin gate, not as multi-user authentication.

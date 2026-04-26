@@ -7,6 +7,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-gamestats}
       POSTGRES_USER: ${POSTGRES_USER:-gamestats}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gamestats}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -20,12 +22,12 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-    command: sh -c "npm install && npm start"
+    command: sh -c "npm ci && npm start"
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      DB_BOOTSTRAP: ${DB_BOOTSTRAP:-false}
+      NODE_ENV: ${NODE_ENV:-development}
+      DB_BOOTSTRAP: ${DB_BOOTSTRAP:-true}
       PORT: ${BACKEND_PORT:-3002}
-      CORS_ORIGIN: "${CORS_ORIGIN:-https://stats.sh.info.pl}"
+      CORS_ORIGIN: "${CORS_ORIGIN:-http://localhost:8501,http://127.0.0.1:8501,http://localhost:5173,http://127.0.0.1:5173}"
       DATABASE_URL: "${DATABASE_URL:-postgresql://${POSTGRES_USER:-gamestats}:${POSTGRES_PASSWORD:-gamestats}@postgres:5432/${POSTGRES_DB:-gamestats}}"
     ports:
       - "8500:${BACKEND_PORT:-3002}"
@@ -38,10 +40,10 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: sh -c "npm install && npm run build && npm run preview -- --host 0.0.0.0 --port ${FRONTEND_PORT:-5173}"
+    command: sh -c "npm ci && npm run build && npm run preview -- --host 0.0.0.0 --port ${FRONTEND_PORT:-5173}"
     environment:
       PORT: ${FRONTEND_PORT:-5173}
-      VITE_API_BASE_URL: "${VITE_API_BASE_URL:-https://stats.sh.info.pl}"
+      VITE_API_BASE_URL: "${VITE_API_BASE_URL:-http://localhost:8500}"
     ports:
       - "8501:${FRONTEND_PORT:-5173}"
     depends_on:

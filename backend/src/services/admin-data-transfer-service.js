@@ -886,14 +886,8 @@ async function getExistingKeys(pool) {
   };
 }
 
-function createSummary(collections, existing) {
-  const summary = {
-    received: mapCounts(collections),
-    toInsert: {},
-    toUpdate: {},
-  };
-
-  const definitions = {
+function getCollectionKeySelectors() {
+  return {
     games: (row) => row.code,
     players: (row) => row.name,
     matches: (row) => row.id,
@@ -909,6 +903,16 @@ function createSummary(collections, existing) {
     multiplayerCustomScoringFields: (row) => `${row.gameId}:${row.code}`,
     multiplayerCustomMatchPlayerValues: (row) => `${row.matchPlayerId}:${row.fieldId}`,
   };
+}
+
+function createSummary(collections, existing) {
+  const summary = {
+    received: mapCounts(collections),
+    toInsert: {},
+    toUpdate: {},
+  };
+
+  const definitions = getCollectionKeySelectors();
 
   COLLECTION_KEYS.forEach((key) => {
     const keyFn = definitions[key];
@@ -927,6 +931,35 @@ function createSummary(collections, existing) {
   });
 
   return summary;
+}
+
+function createImportDiff(collections, existing) {
+  const definitions = getCollectionKeySelectors();
+  const diff = {};
+
+  COLLECTION_KEYS.forEach((key) => {
+    const keyFn = definitions[key];
+    const rows = collections[key] || [];
+    const existingKeys = existing[key] || new Set();
+    diff[key] = rows.map((row) => {
+      const recordKey = keyFn(row);
+      return {
+        key: String(recordKey),
+        operation: existingKeys.has(recordKey) ? 'update' : 'insert',
+      };
+    });
+  });
+
+  return diff;
+}
+
+function createExportMeta(data) {
+  return {
+    schemaVersion: EXPORT_SCHEMA_VERSION,
+    collections: Object.fromEntries(
+      COLLECTION_KEYS.map((key) => [key, { count: Array.isArray(data[key]) ? data[key].length : 0 }])
+    ),
+  };
 }
 
 async function fetchDataExportSnapshot() {
@@ -1044,10 +1077,7 @@ async function fetchDataExportSnapshot() {
     ),
   ]);
 
-  return {
-    version: EXPORT_SCHEMA_VERSION,
-    exportedAt: new Date().toISOString(),
-    data: {
+  const data = {
       games: games.rows.map((row) => ({
         id: row.id,
         code: row.code,
@@ -1173,7 +1203,13 @@ async function fetchDataExportSnapshot() {
         points: row.points,
         createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
       })),
-    },
+  };
+
+  return {
+    version: EXPORT_SCHEMA_VERSION,
+    exportedAt: new Date().toISOString(),
+    meta: createExportMeta(data),
+    data,
   };
 }
 
@@ -1197,6 +1233,7 @@ async function prepareDataImport(payload) {
   const pool = getPool();
   const existingKeys = await getExistingKeys(pool);
   const summary = createSummary(collections, existingKeys);
+  const diff = createImportDiff(collections, existingKeys);
 
   if (warnings.length > 0) {
     console.warn('[admin-data-import] warnings:', warnings);
@@ -1205,6 +1242,7 @@ async function prepareDataImport(payload) {
   return {
     collections,
     summary,
+    diff,
     warnings,
   };
 }

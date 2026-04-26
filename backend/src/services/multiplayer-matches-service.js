@@ -507,7 +507,7 @@ async function listMultiplayerMatches({ gameId, playerId, optionId, dateFrom, da
     `SELECT m.id
      FROM multiplayer_matches m
      ${whereClause}
-     ORDER BY m.played_on DESC
+     ORDER BY m.played_on DESC, m.id DESC
      LIMIT $${pagingParams.length - 1}
      OFFSET $${pagingParams.length}`,
     pagingParams
@@ -535,7 +535,7 @@ async function listMultiplayerMatches({ gameId, playerId, optionId, dateFrom, da
      JOIN multiplayer_match_players mp ON mp.match_id = m.id
      JOIN players p ON p.id = mp.player_id
      WHERE m.id = ANY($1::uuid[])
-     ORDER BY m.played_on DESC, m.id, mp.place ASC, mp.total_points DESC, mp.player_id ASC`,
+     ORDER BY m.played_on DESC, m.id DESC, mp.place ASC, mp.total_points DESC, mp.player_id ASC`,
     [ids]
   );
 

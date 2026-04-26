@@ -1,9 +1,15 @@
 const express = require('express');
 const { Client } = require('pg');
 const { loadEnv } = require('./env');
-const { applyMigrations } = require('./migrations');
-const { seedGames, seedTicketToRideVariants, seedMultiplayerGames } = require('./seed');
-const { corsMiddleware, requireJsonBody, notFoundHandler, errorHandler } = require('./middleware');
+const { bootstrapDatabaseSchema, resetPublicSchema } = require('./db-bootstrap');
+const { getPool } = require('./db');
+const {
+  corsMiddleware,
+  requireJsonBody,
+  requireAdminWriteAccess,
+  notFoundHandler,
+  errorHandler,
+} = require('./middleware');
 const { validateBody } = require('./validation');
 const gamesRouter = require('./routes/games');
 const playersRouter = require('./routes/players');
@@ -24,6 +30,9 @@ const DEFAULT_DB_RETRY_DELAY_MS = 1000;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isBootstrapEnabled = () => String(process.env.DB_BOOTSTRAP || '').toLowerCase() === 'true';
+const shouldResetTestDatabase = () =>
+  process.env.NODE_ENV === 'test' &&
+  String(process.env.DB_RESET_ON_BOOTSTRAP || '').toLowerCase() === 'true';
 
 async function connectWithRetry(databaseUrl) {
   const maxRetriesRaw = Number(process.env.DB_CONNECT_RETRIES ?? DEFAULT_DB_RETRIES);
@@ -71,14 +80,12 @@ async function initializeDatabase() {
   try {
     console.log('Database connection established.');
     if (isBootstrapEnabled()) {
-      console.log('Running database migrations...');
-      await applyMigrations(client);
-      console.log('Seeding games...');
-      await seedGames(client);
-      console.log('Seeding Ticket to Ride variants...');
-      await seedTicketToRideVariants(client);
-      console.log('Seeding multiplayer games...');
-      await seedMultiplayerGames(client);
+      if (shouldResetTestDatabase()) {
+        console.log('Resetting test database schema...');
+        await resetPublicSchema(client);
+      }
+      console.log('Running database migrations and seeds...');
+      await bootstrapDatabaseSchema(client);
     } else {
       console.log('DB bootstrap disabled (set DB_BOOTSTRAP=true to run migrations and seeds).');
       await client.query('SELECT 1');
@@ -108,6 +115,70 @@ function createApp() {
   apiRouter.get('/health', validateBody({}), (_req, res) => {
     res.json({ status: 'ok' });
   });
+  apiRouter.get('/ready', validateBody({}), async (_req, res) => {
+    const readiness = {
+      database: false,
+      schemaMigrations: false,
+      coreTables: {
+        games: false,
+        players: false,
+        matches: false,
+        multiplayerGames: false,
+        multiplayerMatches: false,
+      },
+      appliedMigrations: 0,
+    };
+
+    try {
+      const pool = getPool();
+      const tablesResult = await pool.query(
+        `SELECT
+          to_regclass('public.schema_migrations') IS NOT NULL AS schema_migrations,
+          to_regclass('public.games') IS NOT NULL AS games,
+          to_regclass('public.players') IS NOT NULL AS players,
+          to_regclass('public.matches') IS NOT NULL AS matches,
+          to_regclass('public.multiplayer_games') IS NOT NULL AS multiplayer_games,
+          to_regclass('public.multiplayer_matches') IS NOT NULL AS multiplayer_matches`
+      );
+      const row = tablesResult.rows[0] || {};
+      readiness.database = true;
+      readiness.schemaMigrations = row.schema_migrations === true;
+      readiness.coreTables = {
+        games: row.games === true,
+        players: row.players === true,
+        matches: row.matches === true,
+        multiplayerGames: row.multiplayer_games === true,
+        multiplayerMatches: row.multiplayer_matches === true,
+      };
+
+      if (readiness.schemaMigrations) {
+        const migrationsResult = await pool.query(
+          'SELECT COUNT(*)::int AS applied_migrations FROM schema_migrations'
+        );
+        readiness.appliedMigrations = migrationsResult.rows[0]?.applied_migrations ?? 0;
+      }
+
+      const ready =
+        readiness.database &&
+        readiness.schemaMigrations &&
+        Object.values(readiness.coreTables).every(Boolean) &&
+        readiness.appliedMigrations > 0;
+
+      return res.status(ready ? 200 : 503).json({
+        status: ready ? 'ready' : 'not_ready',
+        checks: readiness,
+      });
+    } catch (error) {
+      return res.status(503).json({
+        status: 'not_ready',
+        checks: readiness,
+        error: {
+          message: error?.message || 'Database readiness check failed',
+        },
+      });
+    }
+  });
+  apiRouter.use(requireAdminWriteAccess);
   apiRouter.use(gamesRouter);
   apiRouter.use(playersRouter);
   apiRouter.use(matchesRouter);

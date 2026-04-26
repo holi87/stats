@@ -3,7 +3,6 @@ const {
   getMultiplayerGameByIdOrThrow,
   listMultiplayerGameOptions,
 } = require('./multiplayer-games-service');
-const { isBaseGameOption } = require('./multiplayer-options-utils');
 
 function mapPlayerStats(row) {
   return {
@@ -64,8 +63,7 @@ async function listMultiplayerPlayerStatsByOption({ gameId }) {
     listMultiplayerPlayerStats({ gameId }),
     listMultiplayerGameOptions({ gameId }),
   ]);
-  const selectableOptions = options.filter((option) => !isBaseGameOption(option));
-  const selectableOptionIds = new Set(selectableOptions.map((option) => option.id));
+  const optionIds = new Set(options.map((option) => option.id));
 
   const optionStatsResult = await pool.query(
     `WITH ranked_players AS (
@@ -104,7 +102,7 @@ async function listMultiplayerPlayerStatsByOption({ gameId }) {
   const rowsByOption = new Map();
   optionStatsResult.rows.forEach((row) => {
     const optionId = row.option_id;
-    if (!selectableOptionIds.has(optionId)) {
+    if (!optionIds.has(optionId)) {
       return;
     }
     if (!rowsByOption.has(optionId)) {
@@ -113,7 +111,7 @@ async function listMultiplayerPlayerStatsByOption({ gameId }) {
     rowsByOption.get(optionId).push(mapPlayerStats(row));
   });
 
-  const byOption = selectableOptions.map((option) => ({
+  const byOption = options.map((option) => ({
     option: {
       id: option.id,
       code: option.code,

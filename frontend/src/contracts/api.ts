@@ -245,6 +245,7 @@ export type MultiplayerMatchTtrCreate = {
 
 export type MultiplayerMatchTmCreatePlayer = {
   playerId: Uuid;
+  totalPoints?: number;
   titlesCount?: number;
   awardsFirstCount?: number;
   awardsSecondCount?: number;
@@ -321,6 +322,7 @@ export type MultiplayerMatchTtrPatch = {
 
 export type MultiplayerMatchTmPatchPlayer = {
   playerId: Uuid;
+  totalPoints?: number;
   titlesCount?: number;
   awardsFirstCount?: number;
   awardsSecondCount?: number;
@@ -481,6 +483,10 @@ export type MultiplayerMatchIdParams = {
 export type AdminDataSnapshot = {
   version: number;
   exportedAt: DateTimeString;
+  meta?: {
+    schemaVersion: number;
+    collections: Record<string, { count: number }>;
+  };
   data: {
     games: Array<{
       id: Uuid;
@@ -618,6 +624,7 @@ export type AdminDataImportSummary = {
 export type AdminDataImportResponse = {
   dryRun: boolean;
   summary: AdminDataImportSummary;
+  diff?: Record<string, Array<{ key: string; operation: 'insert' | 'update' }>>;
   warnings: string[];
   appliedAt?: DateTimeString;
   confirmationRequired?: boolean;

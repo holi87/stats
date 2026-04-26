@@ -10,7 +10,54 @@ env:
   IMAGE_PREFIX: ghcr.io/${{ github.repository }}
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: gamestats
+          POSTGRES_USER: gamestats
+          POSTGRES_PASSWORD: gamestats
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gamestats -d gamestats"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://gamestats:gamestats@localhost:5432/gamestats
+      DB_BOOTSTRAP: "true"
+      NODE_ENV: test
+      FEATURE_OLYMPIC_RANKING: "true"
+      FEATURE_SIMPLE_TM_MODE: "true"
+      FEATURE_MULTI_OPTIONS_MODE: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: OpenAPI route coverage
+        working-directory: backend
+        run: npm run check:openapi-routes
+
+      - name: Backend tests
+        working-directory: backend
+        run: npm test
+
+      - name: Frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+
   build-backend:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -33,6 +80,7 @@ jobs:
             ${{ env.IMAGE_PREFIX }}/backend:${{ github.sha }}
 
   build-frontend:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read

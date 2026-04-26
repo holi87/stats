@@ -1,16 +1,19 @@
 # game-stats
 
-Game Stats to prosta aplikacja webowa do zapisywania wynikow gier 1v1 oraz
-przegladania statystyk. Repozytorium zawiera monorepo z backendem (Node.js),
+Game Stats to aplikacja webowa do zapisywania wynikow gier planszowych 1v1
+oraz multiplayer, z kalkulatorami punktacji, statystykami i narzedziami
+administracyjnymi. Repozytorium zawiera monorepo z backendem (Node.js),
 frontendem (React + Vite) oraz baza danych PostgreSQL uruchamiana w Dockerze.
 
 Szczegoly zmian funkcjonalnych: `CHANGELOG.md`.
 
 ## Production Safety (ważne)
 - Repo jest traktowane jako produkcyjne.
-- Backend NIE wykonuje automatycznie migracji i seedów przy starcie.
+- Backend produkcyjny NIE powinien wykonywac automatycznych migracji i seedów przy starcie.
 - Automatyczny bootstrap bazy uruchamia sie tylko gdy `DB_BOOTSTRAP=true`.
-- Domyślnie ustaw `DB_BOOTSTRAP=false` (tak jak w `docker-compose.yml` i `.env.example`).
+- Lokalny `.env.example` ma `DB_BOOTSTRAP=true`, zeby swiezy Docker Compose wystartowal od razu.
+- Dla produkcji uzyj `.env.production.example` i ustaw `DB_BOOTSTRAP=false`.
+- W produkcji ustaw `ADMIN_TOKEN`; bez tokenu backend odrzuci operacje zapisu.
 - W produkcji nie uruchamiaj `npm run reset:dev` (usuwa cala baze i seeduje dane testowe).
 
 Projekt jest przygotowany do uruchomienia lokalnie przez Docker Compose,
@@ -24,10 +27,11 @@ z migracjami i seedem danych w srodowisku DEV.
 1. Skopiuj plik srodowiskowy:
    `cp .env.example .env`
 2. Uruchom stack:
-   `docker compose up --build`
+   `docker compose -f compose.yml up --build`
 3. Otworz:
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:3002/api/v1
+   - Frontend: http://localhost:8501
+   - Backend API: http://localhost:8500/api/v1
+   - Readiness: http://localhost:8500/api/v1/ready
 
 ## Seed danych
 Seed uruchamia sie tylko przy jawnie ustawionym `DB_BOOTSTRAP=true`.
@@ -39,7 +43,7 @@ Domyslne gry w bazie:
 - Ticket to Ride (code: ticket_to_ride)
 
 Ręczny seed baseline (idempotentny, bez resetu danych):
-`docker compose exec backend npm run seed:baseline`
+`docker compose -f compose.yml exec backend npm run seed:baseline`
 
 ## Moduł multiplayer (Wieloosobowe)
 Moduł multiplayer obsługuje gry 2–5+ graczy z punktacją:
@@ -168,16 +172,16 @@ Frontend (`frontend/.env.example`):
 
 Uwaga:
 - rollout flag frontend/backend powinien być skoordynowany.
-- szybki rollback: przełącz odpowiednią flagę bez zmian w danych DB.
+- szybki rollback: przełącz odpowiednią flagę bez zmian w danych DB i zrestartuj usługi.
 
 ## Migracja legacy Ticket to Ride -> multiplayer
 Migracja jest idempotentna i używa tabeli `legacy_migration_map`, dzięki czemu można ją bezpiecznie uruchamiać wielokrotnie.
 
 Uruchomienie (na działającym backendzie):
-`docker compose exec backend npm run migrate:ttr-legacy`
+`docker compose -f compose.yml exec backend npm run migrate:ttr-legacy`
 
 Opcjonalnie można sterować wielkością batcha:
-`MIGRATION_BATCH_SIZE=100 docker compose exec backend npm run migrate:ttr-legacy`
+`MIGRATION_BATCH_SIZE=100 docker compose -f compose.yml exec backend npm run migrate:ttr-legacy`
 
 ## Legacy Ticket to Ride deprecation plan
 Legacy dotyczy dawnych tabel i endpointów dla Pociągów (Ticket to Ride).
@@ -215,15 +219,16 @@ Jak zweryfikować brak użycia legacy endpointów:
 
 ## Plan wdrożenia PROD (safe)
 1. Wykonaj tylko migracje schematu (bez seed/backfill):
-   - `docker compose exec backend npm run migrate`
+   - `docker compose -f compose.yml exec backend npm run migrate`
 2. Wdróż backend + frontend z flagami:
    - `FEATURE_SIMPLE_TM_MODE=true`
    - `FEATURE_OLYMPIC_RANKING=true`
    - `FEATURE_MULTI_OPTIONS_MODE=true`
 3. Import danych admin:
    - domyślnie wyłączony w PROD (`FEATURE_ADMIN_DATA_IMPORT=false`, `FEATURE_ADMIN_DATA_IMPORT_APPLY=false`).
-4. Zweryfikuj endpoint zdrowia:
+4. Zweryfikuj endpointy zdrowia i gotowosci:
    - `GET /api/v1/health`
+   - `GET /api/v1/ready`
 5. Zweryfikuj ręcznie UI:
    - tworzenie/edycja meczów z remisami,
    - dodatki exclusive/multi,
@@ -244,17 +249,18 @@ Rollback plan:
    - `FEATURE_ADMIN_DATA_IMPORT_APPLY=false`
 3. W razie rollbacku aplikacji użyj standardowego rollbacku artefaktu/kontenera.
    Migracja `016` jest backward-compatible i może pozostać.
+4. Zrestartuj backend/frontend po zmianie flag, bo sa czytane przy starcie procesu.
 
 ## Reset srodowiska DEV
 Reset usuwa wszystkie dane, odtwarza schemat i wykonuje seed:
-`docker compose exec backend npm run reset:dev`
+`docker compose -f compose.yml exec backend npm run reset:dev`
 
 Migracje bez seedu (zalecane dla produkcji):
-`docker compose exec backend npm run migrate`
+`docker compose -f compose.yml exec backend npm run migrate`
 
 Migracje + baseline seed (bez kasowania danych):
-1. `docker compose exec backend npm run migrate`
-2. `docker compose exec backend npm run seed:baseline`
+1. `docker compose -f compose.yml exec backend npm run migrate`
+2. `docker compose -f compose.yml exec backend npm run seed:baseline`
 
 ## Reverse proxy (Nginx Proxy Manager)
 Przy wystawieniu przez Nginx Proxy Manager (np. stats.holak.net.pl):
@@ -268,13 +274,15 @@ Uwaga: w kodzie sciezki API juz zaczynaja sie od `/api/v1`, wiec `VITE_API_BASE_
 - `backend/` - API + migracje + seed
 - `frontend/` - aplikacja React + Vite
 - `docker/` - pliki pomocnicze dla kontenerow (jesli beda potrzebne)
-- `docker-compose.yml` - lokalny stack (Postgres + backend + frontend)
+- `compose.yml` - lokalny stack (Postgres + backend + frontend)
+- `docker-compose.yml` - alternatywny stack z konfiguracja reverse proxy
 
 ## Konwencje jezykowe
 - Identyfikatory w kodzie sa po angielsku (zmienne, endpointy, nazwy tabel i plikow).
 - Warstwa UI i dane wyswietlane uzytkownikowi pozostaja po polsku.
 
 ## Znane ograniczenia (Iteracja 1)
-- brak autoryzacji i logowania
-- tylko mecze 1v1
-- gry sa read-only (brak CRUD dla gier)
+- brak pelnego systemu kont uzytkownikow; ochrona zapisu opiera sie na `ADMIN_TOKEN`,
+- legacy endpointy Ticket to Ride pozostaja tymczasowo dla kompatybilnosci,
+- stare rekordy TM moga nadal zawierac szczegoly legacy kalkulatora,
+- OpenAPI i typy TS sa utrzymywane recznie, dlatego po zmianach API trzeba uruchamiac `npm run check:openapi-routes`.

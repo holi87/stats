@@ -9,7 +9,6 @@ const {
   getMultiplayerGameOptionByCodeForGame,
   getMultiplayerGameOptionByIdForGame,
 } = require('../services/multiplayer-games-service');
-const { isBaseGameOption } = require('../services/multiplayer-options-utils');
 const {
   createMultiplayerMatchManual,
   createMultiplayerMatchCustomCalculator,
@@ -270,12 +269,9 @@ async function resolveOptionsForGame({
     }
   }
 
-  const resolvedWithoutBase = resolved.filter((option) => !isBaseGameOption(option));
-
-  if (resolvedWithoutBase.length === 0 && requireWhenAvailable) {
+  if (resolved.length === 0 && requireWhenAvailable) {
     const activeOptions = await listMultiplayerGameOptions({ gameId: game.id, includeInactive: false });
-    const selectableOptionsCount = activeOptions.filter((option) => !isBaseGameOption(option)).length;
-    if (selectableOptionsCount > 0) {
+    if (activeOptions.length > 0) {
       throw validationError([{ field: optionField, message: 'is required for this game' }]);
     }
   }
@@ -283,7 +279,7 @@ async function resolveOptionsForGame({
   const effectiveExclusive = featureFlags.multiOptionsMode
     ? game.optionsExclusive !== false
     : true;
-  if (effectiveExclusive && resolvedWithoutBase.length > 1) {
+  if (effectiveExclusive && resolved.length > 1) {
     throw validationError([
       {
         field: optionField,
@@ -292,7 +288,7 @@ async function resolveOptionsForGame({
     ]);
   }
 
-  return resolvedWithoutBase;
+  return resolved;
 }
 
 function normalizeCustomCalculatorPlayers({ players, activeFields }) {

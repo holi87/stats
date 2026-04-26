@@ -17,6 +17,14 @@ if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = 'test';
 }
 
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'postgresql://gamestats:gamestats@localhost:5432/gamestats';
+}
+
+if (!process.env.DB_RESET_ON_BOOTSTRAP) {
+  process.env.DB_RESET_ON_BOOTSTRAP = 'true';
+}
+
 if (!process.env.FEATURE_OLYMPIC_RANKING) {
   process.env.FEATURE_OLYMPIC_RANKING = 'true';
 }

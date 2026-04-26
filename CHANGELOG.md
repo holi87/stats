@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-04-26
+
+### Operability and safety
+- Added admin-token enforcement for write endpoints and a frontend admin-token control.
+- Added `/api/v1/ready` to validate DB/schema readiness separately from liveness.
+- Aligned local Docker Compose defaults around ports 8500/8501 and local API base URL.
+- Switched Dockerfiles and Compose bootstrap commands toward `npm ci`.
+
+### Contracts and delivery
+- Documented admin data endpoints and option mutation endpoints in OpenAPI.
+- Updated multiplayer game schemas and error codes in OpenAPI.
+- Added CI test/build gate before Docker image publishing.
+- Replaced frontend `tsc -b` build step with explicit typecheck scripts.
+
+### Data and maintenance
+- Stabilized multiplayer match pagination ordering and added supporting indexes.
+- Added admin import diff preview and export collection metadata.
+- Removed stale Prisma schema from the raw-SQL backend.
+
 ## 2026-02-28
 
 ### Data safety and rollout

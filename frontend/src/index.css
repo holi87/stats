@@ -932,6 +932,21 @@ body {
   gap: 12px;
 }
 
+.admin-token-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(min(360px, 100%), 420px);
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.admin-token-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
 .admin-toolbar-card {
   background:
     linear-gradient(120deg, rgba(175, 228, 255, 0.26), rgba(227, 242, 255, 0.6)),
@@ -1324,6 +1339,8 @@ body {
   .terraforming-mars-inputs,
   .head-to-head-controls,
   .head-to-head-results,
+  .admin-token-card,
+  .admin-token-controls,
   .filters-row {
     grid-template-columns: 1fr;
   }
